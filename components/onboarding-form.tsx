@@ -94,9 +94,7 @@ export const OnboardingForm = ({name, email, image}: Props) => {
                              )}
                              />
 
-                             
                              <Button type="submit">Submit</Button>
-
                           </form>
                      </Form>
                  </CardContent>
