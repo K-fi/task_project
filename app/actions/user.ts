@@ -10,7 +10,6 @@ export const createUser = async(data: UserDataType)=>{
     const {user} = await userRequired();
     if (!user) {
      throw new Error("User not authenticated");
-    // or redirect("/api/auth/login");
     }
     const validatedData = userSchema.parse(data)
 

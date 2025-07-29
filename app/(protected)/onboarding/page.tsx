@@ -6,6 +6,10 @@ import React from 'react'
 
 const page = async() => {
   const {user} = await userRequired();
+  if (!user) {
+    throw new Error("User not authenticated");
+  }
+  
   // Fetch user from database
   const existingUser = await prisma.user.findUnique({
     where: {

@@ -3,12 +3,13 @@ import { userRequired } from '@/app/data/user/is-user-authenticated';
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardContent, CardTitle } from '@/components/ui/card';
+import {LogoutLink} from "@kinde-oss/kinde-auth-nextjs/components";
 import Link from 'next/link';
 
 // Example logout link (adjust to your auth provider)
 const LogoutButton = () => (
   <Button asChild variant="outline" className="ml-auto">
-    <Link href="/api/auth/logout">Log out</Link>
+    <LogoutLink>Log out</LogoutLink>
   </Button>
 );
 
@@ -24,6 +25,9 @@ const Navbar = ({ name }: { name: string }) => (
 
 const DashboardPage = async () => {
   const { user } = await userRequired();
+  if (!user) {
+    throw new Error("User not authenticated");
+  }
 
   const dbUser = await prisma.user.findUnique({
     where: { email: user.email as string },
