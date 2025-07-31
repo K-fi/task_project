@@ -4,6 +4,17 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import React from "react";
+import {
+  Dialog,
+  DialogTrigger,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"; // assuming you're using shadcn/ui
+import AssignTaskForm from "./AssignTaskForm";
+
+
+
 
 interface SupervisorViewProps {
   userId: string;
@@ -53,11 +64,18 @@ const SupervisorView = async ({ userId, name }: SupervisorViewProps) => {
                     View Progress
                   </Link>
                 </Button>
-                <Button asChild variant="default" className="w-full">
-                  <Link href={`/supervisor/interns/${intern.id}/assign-task`}>
-                    Assign Task
-                  </Link>
-                </Button>
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <Button className="w-full">Assign Task</Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Assign Task to {intern.name}</DialogTitle>
+                    </DialogHeader>
+                    <AssignTaskForm internId={intern.id} />
+                  </DialogContent>
+                </Dialog>
+
               </CardContent>
             </Card>
           ))}
