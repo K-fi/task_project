@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import {RegisterLink, LoginLink} from "@kinde-oss/kinde-auth-nextjs/components";
+import {RegisterLink, LoginLink, LogoutLink} from "@kinde-oss/kinde-auth-nextjs/components";
 import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
 import Image from "next/image";
 import Link from "next/link";
@@ -24,9 +24,14 @@ export default async function Home() {
            <div className="flex-items-center justify-center gap-4 mt-6">
               {isLoggedIn ? ( // Conditional rendering
                 // Logged-in state
+                <>
                 <Button asChild>
                   <Link href="/dashboard">Go to dashboard</Link>
                 </Button>
+                <Button asChild variant={"outline"}>
+                  <LogoutLink>Log out</LogoutLink>
+                </Button>
+                </>
               ) : (
                 // Logged-out state
                 <>

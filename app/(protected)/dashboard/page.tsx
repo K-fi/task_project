@@ -6,6 +6,7 @@ import SupervisorView from "@/components/SupervisorView";
 import InternView from "@/components/InternView";
 import React from "react";
 import { AccessLevel } from "@/lib/generated/prisma";
+import { redirect } from "next/navigation"; 
 
 const DashboardPage = async () => {
   const { user } = await userRequired();
@@ -17,8 +18,14 @@ const DashboardPage = async () => {
       id: true,
       name: true,
       role: true,
+      onboardingCompleted: true, 
     },
   });
+
+  // Redirect if onboarding not completed
+  if (!dbUser?.onboardingCompleted) {
+    redirect("/onboarding");
+  }
 
   if (!dbUser || (dbUser.role !== "INTERN" && dbUser.role !== "SUPERVISOR")) {
     return (

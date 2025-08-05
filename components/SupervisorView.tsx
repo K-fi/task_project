@@ -10,18 +10,15 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog"; // assuming you're using shadcn/ui
+} from "@/components/ui/dialog";
 import AssignTaskForm from "./AssignTaskForm";
+import EditTasksDialog from "./EditTasksDialog"; // ⬅️ Import the edit dialog
 
+// Helper to check if task is considered completed
+const isTaskCompleted = (status: string) =>
+  status === "COMPLETED" || status === "LATE";
 
-
-
-interface SupervisorViewProps {
-  userId: string;
-  name: string;
-}
-
-const SupervisorView = async ({ userId, name }: SupervisorViewProps) => {
+const SupervisorView = async ({ userId, name }: { userId: string; name: string }) => {
   const interns = await prisma.user.findMany({
     where: {
       supervisedBy: { some: { id: userId } },
@@ -42,44 +39,69 @@ const SupervisorView = async ({ userId, name }: SupervisorViewProps) => {
         </CardHeader>
         <CardContent>
           <p className="text-muted-foreground text-sm">
-            You are currently supervising {interns.length} intern{interns.length !== 1 ? "s" : ""}.
+            You are currently supervising {interns.length} intern
+            {interns.length !== 1 ? "s" : ""}.
           </p>
         </CardContent>
       </Card>
 
       <div className="space-y-4">
         <h2 className="text-lg font-medium">Your Interns</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {interns.map((intern) => (
-            <Card key={intern.id} className="h-full">
-              <CardHeader>
-                <CardTitle>{intern.name}</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                <p className="text-sm text-muted-foreground">
-                  Tasks Assigned: {intern.assignedTasks.length}
-                </p>
-                <Button asChild variant="secondary" className="w-full">
-                  <Link href={`/supervisor/interns/${intern.id}/progress`}>
-                    View Progress
-                  </Link>
-                </Button>
-                <Dialog>
-                  <DialogTrigger asChild>
-                    <Button className="w-full">Assign Task</Button>
-                  </DialogTrigger>
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>Assign Task to {intern.name}</DialogTitle>
-                    </DialogHeader>
-                    <AssignTaskForm internId={intern.id} />
-                  </DialogContent>
-                </Dialog>
 
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+        {interns.length === 0 ? (
+          <Card className="p-6">
+            <p className="text-muted-foreground text-sm">
+              You are not supervising any interns yet.
+            </p>
+          </Card>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {interns.map((intern) => {
+              const completedCount = intern.assignedTasks.filter((task) =>
+                isTaskCompleted(task.status)
+              ).length;
+
+              return (
+                <Card key={intern.id} className="h-full">
+                  <CardHeader>
+                    <CardTitle>{intern.name}</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <p className="text-sm text-muted-foreground">
+                      Tasks Assigned: {intern.assignedTasks.length}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      Tasks Completed: {completedCount}
+                    </p>
+
+                    {/* View Progress Button */}
+                    <Button asChild variant="secondary" className="w-full">
+                      <Link href={`/supervisor/interns/${intern.id}/progress`}>
+                        View Progress
+                      </Link>
+                    </Button>
+
+                    {/* Assign Task Button */}
+                    <Dialog>
+                      <DialogTrigger asChild>
+                        <Button className="w-full">Assign Task</Button>
+                      </DialogTrigger>
+                      <DialogContent>
+                        <DialogHeader>
+                          <DialogTitle>Assign Task to {intern.name}</DialogTitle>
+                        </DialogHeader>
+                        <AssignTaskForm internId={intern.id} />
+                      </DialogContent>
+                    </Dialog>
+
+                    {/* Edit Tasks Button (New) */}
+                    <EditTasksDialog internName={intern.name} tasks={intern.assignedTasks} />
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );

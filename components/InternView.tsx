@@ -1,55 +1,55 @@
-// components/InternView.tsx
 import { prisma } from "@/lib/db";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import TaskCard from "./TaskCard";
+import Link from "next/link";
+import { TaskStatus } from "@/lib/generated/prisma";
 
 interface InternViewProps {
   userId: string;
   name: string;
+  statusFilter?: TaskStatus;
 }
 
-const InternView = async ({ userId, name }: InternViewProps) => {
-  // Fetch tasks assigned to the intern and include the creator (supervisor)
+const InternView = async ({ userId, name, statusFilter }: InternViewProps) => {
   const tasks = await prisma.task.findMany({
     where: {
       assignedId: userId,
+      ...(statusFilter ? { status: statusFilter } : {}),
     },
-    orderBy: {
-      dueDate: "asc",
-    },
+    orderBy: { dueDate: "asc" },
     include: {
-      creator: {
+      creator: { select: { name: true } },
+      submissionLogs: {
         select: {
-          name: true,
+          id: true,
+          content: true,
+          submittedAt: true,
+          submittedBy: { select: { name: true } },
         },
+        orderBy: { submittedAt: "desc" },
       },
     },
   });
 
-  // Fetch supervisors of the intern
   const user = await prisma.user.findUnique({
     where: { id: userId },
     select: {
-      supervisedBy: {
-        select: {
-          id: true,
-          name: true,
-          email: true,
-        },
-      },
+      supervisedBy: { select: { id: true, name: true, email: true } },
     },
   });
 
   const supervisors = user?.supervisedBy || [];
-  const completedCount = tasks.filter((task) => task.status === "COMPLETED").length;
+  const completedCount = tasks.filter(
+    (task) => task.status === "COMPLETED" || task.status === "LATE"
+  ).length;
+
+  const filters: (TaskStatus | "ALL")[] = ["ALL", ...Object.values(TaskStatus)];
 
   return (
     <div className="space-y-6">
-      {/* Welcome Card */}
       <Card className="bg-muted">
         <CardHeader>
-          <CardTitle className="text-xl font-semibold">
-            Welcome, {name} 👋
-          </CardTitle>
+          <CardTitle className="text-xl font-semibold">Welcome, {name} 👋</CardTitle>
         </CardHeader>
         <CardContent className="space-y-2">
           <p className="text-muted-foreground text-sm">
@@ -65,46 +65,42 @@ const InternView = async ({ userId, name }: InternViewProps) => {
         </CardContent>
       </Card>
 
-      {/* Task Board */}
       <div className="space-y-4">
-        <h2 className="text-lg font-semibold">Your Tasks</h2>
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold">Your Tasks</h2>
+          
+          {/* Filter buttons */}
+          <div className="flex gap-2">
+            {filters.map((status) => {
+              const isActive =
+                (status === "ALL" && !statusFilter) || status === statusFilter;
+
+              return (
+                <Link
+                  key={status}
+                  href={status === "ALL" ? "/dashboard" : `/dashboard?status=${status}`}
+                  className={`text-sm px-2 py-1 rounded transition ${
+                    isActive
+                      ? "bg-primary text-white"
+                      : "bg-muted text-muted-foreground hover:bg-muted/70"
+                  }`}
+                >
+                  {status}
+                </Link>
+              );
+            })}
+          </div>
+
+        </div>
 
         {tasks.length === 0 ? (
           <Card className="p-6">
-            <p className="text-sm text-muted-foreground">
-              You have no tasks assigned.
-            </p>
+            <p className="text-sm text-muted-foreground">You have no tasks assigned.</p>
           </Card>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {tasks.map((task) => (
-              <Card key={task.id}>
-                <CardHeader>
-                  <CardTitle>{task.title}</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-1 text-sm">
-                  {task.description && (
-                    <p className="text-muted-foreground">{task.description}</p>
-                  )}
-                  <p>
-                    <strong>Status:</strong> {task.status}
-                  </p>
-                  <p>
-                    <strong>Priority:</strong> {task.priority}
-                  </p>
-                  <p>
-                    <strong>Assigned by:</strong> {task.creator?.name ?? "Unknown"}
-                  </p>
-                  <p>
-                    <strong>Created date:</strong>{" "}
-                    {new Date(task.createdAt).toLocaleDateString()}
-                  </p>
-                  <p>
-                    <strong>Due:</strong>{" "}
-                    {new Date(task.dueDate).toLocaleDateString()}
-                  </p>
-                </CardContent>
-              </Card>
+              <TaskCard key={task.id} task={task} viewerRole="INTERN" />
             ))}
           </div>
         )}

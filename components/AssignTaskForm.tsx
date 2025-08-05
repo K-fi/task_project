@@ -1,12 +1,21 @@
-// components/AssignTaskForm.tsx
 "use client";
 
 import { assignTask } from "@/app/actions/assignTask";
 import { useRef, useTransition } from "react";
+import { useEffect, useState } from "react";
 
 export default function AssignTaskForm({ internId }: { internId: string }) {
   const formRef = useRef<HTMLFormElement>(null);
   const [isPending, startTransition] = useTransition();
+  const [minDate, setMinDate] = useState("");
+
+  useEffect(() => {
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth() + 1).padStart(2, "0");
+    const dd = String(today.getDate()).padStart(2, "0");
+    setMinDate(`${yyyy}-${mm}-${dd}`);
+  }, []);
 
   const handleSubmit = (formData: FormData) => {
     startTransition(async () => {
@@ -60,6 +69,7 @@ export default function AssignTaskForm({ internId }: { internId: string }) {
           name="dueDate"
           id="dueDate"
           className="w-full border p-2 rounded"
+          min={minDate}
           required
         />
       </div>

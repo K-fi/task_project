@@ -23,15 +23,9 @@ export const Navbar = ({ name, role }: { name: string; role: AccessLevel }) => {
               <Link href="/manage-interns" className="text-sm text-muted-foreground hover:text-primary">
                 Manage Interns
               </Link>
-              <Link href="/task-progress" className="text-sm text-muted-foreground hover:text-primary">
-                View Progress
-              </Link>
             </>
           ) : (
             <>
-              <Link href="/tasks" className="text-sm text-muted-foreground hover:text-primary">
-                My Tasks
-              </Link>
               <Link href="/log-progress" className="text-sm text-muted-foreground hover:text-primary">
                 Log Progress
               </Link>
