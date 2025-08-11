@@ -191,8 +191,10 @@ export default function EditTasksDialog({
                 }}
                 placeholder="Task description"
                 maxLength={500}
-                className="resize-none w-full min-h-[80px] max-h-[200px] overflow-y-auto whitespace-pre-wrap break-all"
+                className="resize-none w-full min-h-[80px] max-h-[200px] overflow-y-auto whitespace-pre-wrap"
+                style={{ overflowWrap: "anywhere" }}
               />
+
               <div className="flex justify-between">
                 <p className="text-sm text-muted-foreground">
                   Provide detailed instructions

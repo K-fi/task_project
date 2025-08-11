@@ -78,7 +78,8 @@ export default function AssignTaskForm({ internId }: { internId: string }) {
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             aria-describedby="description-help"
-            className="resize-none w-full min-h-[80px] max-h-[200px] overflow-y-auto whitespace-pre-wrap break-all"
+            className="resize-none w-full min-h-[80px] max-h-[200px] overflow-y-auto whitespace-pre-wrap"
+            style={{ overflowWrap: "anywhere" }}
           />
           <div className="flex justify-between">
             <p id="description-help" className="text-sm text-muted-foreground">
