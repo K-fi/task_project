@@ -1,57 +1,126 @@
-// app/supervisor/interns/[internId]/progress/page.tsx
+// app/(protected)/supervisor/interns/[internId]/progress/page.tsx
 import { prisma } from "@/lib/db";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import TaskCard from "@/components/TaskCard";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { requireUserWithRole } from "@/lib/auth/requireUserWithRole";
+import ProgressLogsView from "@/components/supervisor/ProgressLogsView";
+import { TaskStatus } from "@/lib/generated/prisma";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import Link from "next/link";
 
-// Explicitly declare this as a dynamic route
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
-// Type for the intern data
-type InternWithTasks = Awaited<ReturnType<typeof getInternData>>;
+export default async function Page({
+  params,
+  searchParams,
+}: {
+  params: { internId: string };
+  searchParams?: { status?: TaskStatus };
+}) {
+  await requireUserWithRole("SUPERVISOR");
 
-async function getInternData(internId: string) {
-  return await prisma.user.findUnique({
-    where: { id: internId, role: "INTERN" },
-    include: {
-      assignedTasks: {
-        orderBy: { dueDate: "asc" },
-        include: {
-          creator: { select: { name: true } },
-          submissionLogs: {
-            orderBy: { submittedAt: "desc" },
-            include: { submittedBy: { select: { name: true } } },
+  // Fetch data
+  const [intern, progressLogs] = await Promise.all([
+    prisma.user.findUnique({
+      where: { id: params.internId, role: "INTERN" },
+      include: {
+        assignedTasks: {
+          where: searchParams?.status ? { status: searchParams.status } : {},
+          orderBy: { dueDate: "asc" },
+          include: {
+            creator: { select: { name: true } },
+            submissionLogs: {
+              orderBy: { submittedAt: "desc" },
+              include: { submittedBy: { select: { name: true } } },
+            },
           },
         },
       },
-    },
-  });
-}
+    }),
+    prisma.progressLog.findMany({
+      where: { userId: params.internId },
+      orderBy: { date: "desc" },
+      include: {
+        task: { select: { id: true, title: true } },
+      },
+    }),
+  ]);
 
-// The actual page component
-export default async function Page({ params }: { params: { internId: string } }) {
-  // First validate the user
-  await requireUserWithRole("SUPERVISOR");
-  
-  // Then fetch the intern data
-  const intern = await getInternData(params.internId);
   if (!intern) return notFound();
+
+  const logsWithDates = progressLogs.map((log) => ({
+    ...log,
+    date: new Date(log.date),
+    createdAt: new Date(log.createdAt),
+    updatedAt: new Date(log.updatedAt),
+  }));
 
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-bold">
-        Progress Report for {intern.name}
-      </h1>
+      <h1 className="text-2xl font-bold">Progress Report for {intern.name}</h1>
 
-      {intern.assignedTasks.length === 0 ? (
-        <p className="text-muted-foreground text-sm">No tasks assigned.</p>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {intern.assignedTasks.map((task) => (
-            <TaskCard key={task.id} task={task} viewerRole="SUPERVISOR" />
-          ))}
-        </div>
-      )}
+      <Tabs defaultValue="tasks">
+        <TabsList>
+          <TabsTrigger value="tasks">
+            Tasks ({intern.assignedTasks.length})
+          </TabsTrigger>
+          <TabsTrigger value="logs">
+            Progress Logs ({logsWithDates.length})
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="tasks">
+          <div className="flex justify-between items-center mb-4">
+            <Select>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Filter by status" />
+              </SelectTrigger>
+              <SelectContent>
+                <Link href={`?`} scroll={false}>
+                  <SelectItem value="all">All Statuses</SelectItem>
+                </Link>
+                <Link href={`?status=TODO`} scroll={false}>
+                  <SelectItem value="TODO">To Do</SelectItem>
+                </Link>
+                <Link href={`?status=COMPLETED`} scroll={false}>
+                  <SelectItem value="COMPLETED">Completed</SelectItem>
+                </Link>
+                <Link href={`?status=LATE`} scroll={false}>
+                  <SelectItem value="LATE">Late</SelectItem>
+                </Link>
+                <Link href={`?status=OVERDUE`} scroll={false}>
+                  <SelectItem value="OVERDUE">Overdue</SelectItem>
+                </Link>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {intern.assignedTasks.length === 0 ? (
+            <p className="text-muted-foreground text-sm">
+              {searchParams?.status
+                ? `No ${searchParams.status.toLowerCase()} tasks`
+                : "No tasks assigned"}
+            </p>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {intern.assignedTasks.map((task) => (
+                <TaskCard key={task.id} task={task} viewerRole="SUPERVISOR" />
+              ))}
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="logs">
+          <ProgressLogsView logs={logsWithDates} internName={intern.name} />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
