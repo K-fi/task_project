@@ -8,13 +8,23 @@ export async function updateTaskAction(task: {
   title: string;
   description?: string;
   dueDate?: string;
+  priority: "LOW" | "MEDIUM" | "HIGH";
 }) {
+  if (task.title.length > 100) {
+    throw new Error("Title must be 100 characters or less");
+  }
+
+  if (task.description && task.description.length > 500) {
+    throw new Error("Description must be 500 characters or less");
+  }
+
   await prisma.task.update({
     where: { id: task.id },
     data: {
       title: task.title,
       description: task.description,
       dueDate: task.dueDate ? new Date(task.dueDate) : undefined,
+      priority: task.priority,
     },
   });
 

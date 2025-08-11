@@ -35,10 +35,17 @@ export const completeTaskAction = async ({
 
   const now = new Date();
   let newStatus: TaskStatus = TaskStatus.COMPLETED;
+  const isLate = task.dueDate.toDateString() < now.toDateString();
 
-  if (task.dueDate < now) {
+  if (isLate) {
     newStatus = TaskStatus.LATE;
   }
+
+  
+
+/*  if (task.dueDate < now) {
+/    newStatus = TaskStatus.LATE;
+  }*/
 
   await prisma.$transaction([
     // 1. Update task's current status and submission

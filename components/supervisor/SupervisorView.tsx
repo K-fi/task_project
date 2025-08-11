@@ -12,13 +12,19 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import AssignTaskForm from "./AssignTaskForm";
-import EditTasksDialog from "./EditTasksDialog"; // ⬅️ Import the edit dialog
+import EditTasksDialog from "./EditTasksDialog";
 
 // Helper to check if task is considered completed
 const isTaskCompleted = (status: string) =>
   status === "COMPLETED" || status === "LATE";
 
-const SupervisorView = async ({ userId, name }: { userId: string; name: string }) => {
+const SupervisorView = async ({
+  userId,
+  name,
+}: {
+  userId: string;
+  name: string;
+}) => {
   const interns = await prisma.user.findMany({
     where: {
       supervisedBy: { some: { id: userId } },
@@ -88,14 +94,19 @@ const SupervisorView = async ({ userId, name }: { userId: string; name: string }
                       </DialogTrigger>
                       <DialogContent>
                         <DialogHeader>
-                          <DialogTitle>Assign Task to {intern.name}</DialogTitle>
+                          <DialogTitle>
+                            Assign Task to {intern.name}
+                          </DialogTitle>
                         </DialogHeader>
                         <AssignTaskForm internId={intern.id} />
                       </DialogContent>
                     </Dialog>
 
-                    {/* Edit Tasks Button (New) */}
-                    <EditTasksDialog internName={intern.name} tasks={intern.assignedTasks} />
+                    {/* Edit Tasks Button */}
+                    <EditTasksDialog
+                      internName={intern.name}
+                      tasks={intern.assignedTasks}
+                    />
                   </CardContent>
                 </Card>
               );

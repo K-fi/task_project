@@ -2,13 +2,12 @@
 import { userRequired } from "@/app/data/user/is-user-authenticated";
 import { prisma } from "@/lib/db";
 import { redirect } from "next/navigation";
-import ManageInternsClient from "@/components/ManageInternsClient";
+import ManageInternsClient from "@/components/supervisor/ManageInterns";
 import { requireUserWithRole } from "@/lib/auth/requireUserWithRole";
 
 export default async function ManageInternsPage() {
   //  Ensure only SUPERVISORs can view this page
-    const dbUser = await requireUserWithRole("SUPERVISOR");
-  
+  const dbUser = await requireUserWithRole("SUPERVISOR");
 
   // Fetch both available and supervised interns on the server
   const availableInterns = await prisma.user.findMany({

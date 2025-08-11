@@ -23,6 +23,8 @@ export const requireUserWithRole = async (
     select: {
       id: true,
       role: true,
+      name: true,
+      email: true,
       onboardingCompleted: true,
     },
   });

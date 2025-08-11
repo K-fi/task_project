@@ -1,14 +1,13 @@
 // app/dashboard/page.tsx
 import { prisma } from "@/lib/db";
 import { userRequired } from "@/app/data/user/is-user-authenticated";
-import { Navbar } from "@/components/Navbar";
-import SupervisorView from "@/components/SupervisorView";
-import InternView from "@/components/InternView";
+import SupervisorView from "@/components/supervisor/SupervisorView";
+import InternView from "@/components/intern/InternView";
 import React from "react";
-import { AccessLevel } from "@/lib/generated/prisma";
-import { redirect } from "next/navigation"; 
+import { redirect } from "next/navigation";
 
 const DashboardPage = async () => {
+  // User authentication
   const { user } = await userRequired();
   if (!user) throw new Error("User not authenticated");
 
@@ -18,11 +17,10 @@ const DashboardPage = async () => {
       id: true,
       name: true,
       role: true,
-      onboardingCompleted: true, 
+      onboardingCompleted: true,
     },
   });
 
-  // Redirect if onboarding not completed
   if (!dbUser?.onboardingCompleted) {
     redirect("/onboarding");
   }
@@ -35,13 +33,18 @@ const DashboardPage = async () => {
     );
   }
 
+  // Render different views based on user role
   return (
     <div className="min-h-screen bg-background">
       <main className="max-w-7xl mx-auto px-6 py-8">
         {dbUser.role === "SUPERVISOR" ? (
           <SupervisorView userId={dbUser.id} name={dbUser.name} />
         ) : (
-          <InternView userId={dbUser.id} name={dbUser.name} />
+          <InternView
+            userId={dbUser.id}
+            name={dbUser.name}
+            currentStatus="TODO" // default: TODO tasks
+          />
         )}
       </main>
     </div>

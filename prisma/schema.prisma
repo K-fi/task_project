@@ -79,19 +79,22 @@ model SubmissionLog {
 
 model ProgressLog {
   id          String   @id @default(uuid())
+  title       String
   description String
   hoursWorked Float
   date        DateTime @default(now())
   
   // Relationships
-  task       Task      @relation(fields: [taskId], references: [id])
-  taskId     String
+  task       Task?     @relation(fields: [taskId], references: [id])
+  taskId     String?   // <-- make this nullable
+  
   user       User      @relation(fields: [userId], references: [id])
   userId     String
   
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 }
+
 
 enum AccessLevel {
   USER

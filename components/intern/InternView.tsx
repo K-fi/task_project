@@ -1,20 +1,21 @@
 import { prisma } from "@/lib/db";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import TaskCard from "./TaskCard";
+import TaskCard from "../TaskCard";
 import Link from "next/link";
 import { TaskStatus } from "@/lib/generated/prisma";
+import { taskStatusRoutes } from "@/lib/statusRoutes"; // optional helper for cleaner links
 
 interface InternViewProps {
   userId: string;
   name: string;
-  statusFilter?: TaskStatus;
+  currentStatus: "ALL" | TaskStatus;
 }
 
-const InternView = async ({ userId, name, statusFilter }: InternViewProps) => {
+const InternView = async ({ userId, name, currentStatus }: InternViewProps) => {
   const tasks = await prisma.task.findMany({
     where: {
       assignedId: userId,
-      ...(statusFilter ? { status: statusFilter } : {}),
+      ...(currentStatus !== "ALL" ? { status: currentStatus } : {}),
     },
     orderBy: { dueDate: "asc" },
     include: {
@@ -43,7 +44,12 @@ const InternView = async ({ userId, name, statusFilter }: InternViewProps) => {
     (task) => task.status === "COMPLETED" || task.status === "LATE"
   ).length;
 
-  const filters: (TaskStatus | "ALL")[] = ["ALL", ...Object.values(TaskStatus)];
+  // Reordered filters with TODO first, then other statuses, then ALL
+  const filters: (TaskStatus | "ALL")[] = [
+    "TODO",
+    ...Object.values(TaskStatus).filter(status => status !== "TODO"),
+    "ALL"
+  ];
 
   return (
     <div className="space-y-6">
@@ -68,17 +74,16 @@ const InternView = async ({ userId, name, statusFilter }: InternViewProps) => {
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold">Your Tasks</h2>
-          
-          {/* Filter buttons */}
+
+          {/* Filter buttons with page-based routing */}
           <div className="flex gap-2">
             {filters.map((status) => {
-              const isActive =
-                (status === "ALL" && !statusFilter) || status === statusFilter;
+              const isActive = currentStatus === status;
 
               return (
                 <Link
                   key={status}
-                  href={status === "ALL" ? "/dashboard" : `/dashboard?status=${status}`}
+                  href={taskStatusRoutes[status]}
                   className={`text-sm px-2 py-1 rounded transition ${
                     isActive
                       ? "bg-primary text-white"
@@ -90,7 +95,6 @@ const InternView = async ({ userId, name, statusFilter }: InternViewProps) => {
               );
             })}
           </div>
-
         </div>
 
         {tasks.length === 0 ? (

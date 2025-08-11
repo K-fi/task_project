@@ -1,20 +1,18 @@
 // app/supervisor/interns/[internId]/progress/page.tsx
-
 import { prisma } from "@/lib/db";
 import TaskCard from "@/components/TaskCard";
 import { notFound } from "next/navigation";
-import { requireUserWithRole } from "@/lib/auth/requireUserWithRole"; 
+import { requireUserWithRole } from "@/lib/auth/requireUserWithRole";
 
-interface InternProgressPageProps {
-  params: { internId: string };
-}
+// Explicitly declare this as a dynamic route
+export const dynamic = 'force-dynamic';
 
-const InternProgressPage = async ({ params }: InternProgressPageProps) => {
-  //  Ensure only SUPERVISORs can view this page
-  const dbUser = await requireUserWithRole("SUPERVISOR");
+// Type for the intern data
+type InternWithTasks = Awaited<ReturnType<typeof getInternData>>;
 
-  const intern = await prisma.user.findUnique({
-    where: { id: params.internId, role: "INTERN" },
+async function getInternData(internId: string) {
+  return await prisma.user.findUnique({
+    where: { id: internId, role: "INTERN" },
     include: {
       assignedTasks: {
         orderBy: { dueDate: "asc" },
@@ -28,7 +26,15 @@ const InternProgressPage = async ({ params }: InternProgressPageProps) => {
       },
     },
   });
+}
 
+// The actual page component
+export default async function Page({ params }: { params: { internId: string } }) {
+  // First validate the user
+  await requireUserWithRole("SUPERVISOR");
+  
+  // Then fetch the intern data
+  const intern = await getInternData(params.internId);
   if (!intern) return notFound();
 
   return (
@@ -48,6 +54,4 @@ const InternProgressPage = async ({ params }: InternProgressPageProps) => {
       )}
     </div>
   );
-};
-
-export default InternProgressPage;
+}

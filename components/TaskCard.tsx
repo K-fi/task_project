@@ -2,12 +2,7 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardContent,
-} from "@/components/ui/card";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -46,7 +41,7 @@ interface TaskCardProps {
   viewerRole: "INTERN" | "SUPERVISOR";
 }
 
-  const TaskCard = ({ task, viewerRole }: TaskCardProps) => {
+const TaskCard = ({ task, viewerRole }: TaskCardProps) => {
   const [open, setOpen] = useState(false);
   const [submission, setSubmission] = useState(task.submission ?? "");
   const [isPending, startTransition] = useTransition();
@@ -151,7 +146,7 @@ interface TaskCardProps {
           )}
         </div>
 
-        {/* ✅ Dialog shown for both roles now */}
+        {/*  Dialog shown for both roles now */}
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
             <Button
@@ -185,35 +180,66 @@ interface TaskCardProps {
               </DialogTitle>
             </DialogHeader>
 
-           {viewerRole === "INTERN" ? (
-            <Tabs value={tab} onValueChange={setTab} className="w-full">
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="submit">Submit</TabsTrigger>
-                <TabsTrigger value="history">History</TabsTrigger>
-              </TabsList>
+            {viewerRole === "INTERN" ? (
+              <Tabs value={tab} onValueChange={setTab} className="w-full">
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="submit">Submit</TabsTrigger>
+                  <TabsTrigger value="history">History</TabsTrigger>
+                </TabsList>
 
-              <TabsContent value="submit" className="pt-4 space-y-3">
-                <Textarea
-                  placeholder="Add description or link"
-                  value={submission}
-                  onChange={(e) => setSubmission(e.target.value)}
-                />
-                <DialogFooter>
-                  <Button
-                    onClick={handleSubmit}
-                    disabled={isPending || !submission.trim()}
-                    className="w-full"
-                  >
-                    <CheckCircle className="w-4 h-4 mr-2" />
-                    {isCompleted ? "Resubmit" : "Submit & Complete"}
-                  </Button>
-                </DialogFooter>
-              </TabsContent>
+                <TabsContent value="submit" className="pt-4 space-y-3">
+                  <div className="space-y-2">
+                    <Textarea
+                      placeholder="Add description or link"
+                      value={submission}
+                      onChange={(e) => setSubmission(e.target.value)}
+                      maxLength={500}
+                      className="resize-none w-full min-h-[100px] max-h-[200px] overflow-y-auto whitespace-pre-wrap break-all"
+                    />
+                    <p className="text-sm text-muted-foreground text-right">
+                      {500 - submission.length} characters remaining
+                    </p>
+                  </div>
+                  <DialogFooter>
+                    <Button
+                      onClick={handleSubmit}
+                      disabled={isPending || !submission.trim()}
+                      className="w-full"
+                    >
+                      <CheckCircle className="w-4 h-4 mr-2" />
+                      {isCompleted ? "Resubmit" : "Submit & Complete"}
+                    </Button>
+                  </DialogFooter>
+                </TabsContent>
 
-              <TabsContent
-                value="history"
-                className="pt-4 max-h-64 overflow-y-auto space-y-2"
-              >
+                <TabsContent
+                  value="history"
+                  className="pt-4 max-h-64 overflow-y-auto space-y-2"
+                >
+                  {logs.length > 0 ? (
+                    logs.map((log) => (
+                      <div
+                        key={log.id}
+                        className="border rounded p-2 text-xs text-muted-foreground"
+                      >
+                        <div>
+                          <strong>{log.submittedBy?.name ?? "Unknown"}:</strong>{" "}
+                          {log.content}
+                        </div>
+                        <div className="text-[10px] text-gray-500">
+                          {dayjs(log.submittedAt).format("MMM D, YYYY h:mm A")}
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-xs text-muted-foreground">
+                      No submission history found.
+                    </p>
+                  )}
+                </TabsContent>
+              </Tabs>
+            ) : (
+              <div className="pt-4 max-h-64 overflow-y-auto space-y-2">
                 {logs.length > 0 ? (
                   logs.map((log) => (
                     <div
@@ -234,32 +260,8 @@ interface TaskCardProps {
                     No submission history found.
                   </p>
                 )}
-              </TabsContent>
-            </Tabs>
-          ) : (
-            <div className="pt-4 max-h-64 overflow-y-auto space-y-2">
-              {logs.length > 0 ? (
-                logs.map((log) => (
-                  <div
-                    key={log.id}
-                    className="border rounded p-2 text-xs text-muted-foreground"
-                  >
-                    <div>
-                      <strong>{log.submittedBy?.name ?? "Unknown"}:</strong>{" "}
-                      {log.content}
-                    </div>
-                    <div className="text-[10px] text-gray-500">
-                      {dayjs(log.submittedAt).format("MMM D, YYYY h:mm A")}
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <p className="text-xs text-muted-foreground">
-                  No submission history found.
-                </p>
-              )}
-            </div>
-          )}
+              </div>
+            )}
           </DialogContent>
         </Dialog>
       </CardContent>

@@ -9,7 +9,10 @@ export async function assignTask(formData: FormData) {
   const title = formData.get("title")?.toString();
   const description = formData.get("description")?.toString() || "";
   const assignedId = formData.get("assignedId")?.toString();
-  const priority = formData.get("priority")?.toString() as "LOW" | "MEDIUM" | "HIGH";
+  const priority = formData.get("priority")?.toString() as
+    | "LOW"
+    | "MEDIUM"
+    | "HIGH";
   const dueDate = formData.get("dueDate")?.toString();
 
   if (!title || !assignedId || !dueDate) {
@@ -18,7 +21,7 @@ export async function assignTask(formData: FormData) {
 
   const { user } = await userRequired();
   if (!user) {
-     throw new Error("User not authenticated");
+    throw new Error("User not authenticated");
   }
 
   const creator = await prisma.user.findUnique({

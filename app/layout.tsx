@@ -1,14 +1,12 @@
 // app/layout.tsx
-
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/components/AuthProvider";
 import { Toaster } from "sonner";
-
 import { userRequired } from "@/app/data/user/is-user-authenticated";
 import { prisma } from "@/lib/db";
-import { Navbar } from "@/components/Navbar"; // your existing Navbar component
+import { Navbar } from "@/components/Navbar";
 import { AccessLevel } from "@/lib/generated/prisma";
 
 const geistSans = Geist({
@@ -26,36 +24,51 @@ export const metadata: Metadata = {
   description: "Intern-Supervisor Task Manager App",
 };
 
-// Add a wrapper to inject Navbar server-side
 export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  // Attempt to get authenticated user, fallback to null if not authenticated
   const { user } = await userRequired().catch(() => ({ user: null }));
 
-  let dbUser: { name: string; role: string } | null = null;
+  let userData: { name: string; role: AccessLevel } | null = null;
 
+  // Fetch user data if authenticated
   if (user) {
-    dbUser = await prisma.user.findUnique({
+    const dbUser = await prisma.user.findUnique({
       where: { email: user.email as string },
       select: { name: true, role: true },
     });
+
+    if (dbUser) {
+      userData = {
+        name: dbUser.name || "",
+        role: dbUser.role as AccessLevel,
+      };
+    }
   }
 
   return (
     <AuthProvider>
-      <html lang="en">
+      <html lang="en" className="scroll-smooth">
         <body
           className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background text-foreground`}
         >
-          {/* ✅ Show Navbar if authenticated and user exists */}
-          {dbUser && <Navbar name={dbUser.name} role={dbUser.role as AccessLevel} />}
+          {/* Sticky Navbar - always visible */}
+          <Navbar
+            name={userData?.name}
+            role={userData?.role}
+            isAuthenticated={!!user}
+          />
 
-          {/* ✅ Main page content */}
-          <main className="max-w-7xl mx-auto p-4">{children}</main>
+          {/* Main content with extra top padding to account for fixed navbar */}
+          <main className="max-w-7xl mx-auto px-4 py-20 min-h-screen">
+            {children}
+          </main>
 
-          <Toaster />
+          {/* Toast notifications */}
+          <Toaster position="top-right" />
         </body>
       </html>
     </AuthProvider>
