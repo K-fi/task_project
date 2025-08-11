@@ -194,8 +194,10 @@ const TaskCard = ({ task, viewerRole }: TaskCardProps) => {
                       value={submission}
                       onChange={(e) => setSubmission(e.target.value)}
                       maxLength={500}
-                      className="resize-none w-full min-h-[100px] max-h-[200px] overflow-y-auto whitespace-pre-wrap break-all"
+                      className="resize-none w-full min-h-[100px] max-h-[200px] overflow-y-auto whitespace-pre-wrap"
+                      style={{ overflowWrap: "anywhere" }}
                     />
+
                     <p className="text-sm text-muted-foreground text-right">
                       {500 - submission.length} characters remaining
                     </p>
