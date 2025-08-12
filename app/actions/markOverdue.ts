@@ -5,10 +5,12 @@ import { TaskStatus } from "@/lib/generated/prisma";
 import dayjs from "dayjs";
 
 export async function markOverdueTasksAction(userId?: string) {
-  const now = dayjs().toDate();
+  // Get the start of today (00:00:00 of current day)
+  const startOfToday = dayjs().startOf("day").toDate();
 
   const whereClause: any = {
-    dueDate: { lt: now },
+    // Due date is before today (meaning due date was yesterday or earlier)
+    dueDate: { lt: startOfToday },
     status: TaskStatus.TODO,
   };
 

@@ -1,13 +1,24 @@
-// app/dashboard/page.tsx
 import { prisma } from "@/lib/db";
 import { userRequired } from "@/app/data/user/is-user-authenticated";
 import SupervisorView from "@/components/supervisor/SupervisorView";
 import InternView from "@/components/intern/InternView";
-import React from "react";
 import { redirect } from "next/navigation";
 import { markOverdueTasksAction } from "@/app/actions/markOverdue";
+import { TaskStatus } from "@/lib/generated/prisma";
 
-const DashboardPage = async () => {
+type ExtraStatus = "ALL" | "TODO_OVERDUE" | "COMPLETED_LATE";
+
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{
+    page?: string;
+    status?: string;
+  }>;
+}) {
+  // Await searchParams as required by Next.js 15
+  const params = await searchParams;
+
   // User authentication
   const { user } = await userRequired();
   if (!user) throw new Error("User not authenticated");
@@ -40,7 +51,21 @@ const DashboardPage = async () => {
     );
   }
 
-  // Render different views based on user role
+  // Validate status parameter
+  const validStatuses = [
+    "ALL",
+    "TODO_OVERDUE",
+    "COMPLETED_LATE",
+    ...Object.values(TaskStatus),
+  ];
+  const status =
+    params.status && validStatuses.includes(params.status)
+      ? (params.status as ExtraStatus | TaskStatus)
+      : "TODO_OVERDUE";
+
+  // Parse page number
+  const page = params.page || "1";
+
   return (
     <div className="min-h-screen bg-background">
       <main className="max-w-7xl mx-auto px-6 py-8">
@@ -50,12 +75,10 @@ const DashboardPage = async () => {
           <InternView
             userId={dbUser.id}
             name={dbUser.name}
-            currentStatus="TODO_OVERDUE" // default now shows TODO + OVERDUE
+            searchParams={{ status, page }}
           />
         )}
       </main>
     </div>
   );
-};
-
-export default DashboardPage;
+}
