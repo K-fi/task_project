@@ -17,29 +17,48 @@ import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
+const TASKS_PER_PAGE = 6; // Same as InternView
+
 export default async function Page({
   params,
   searchParams,
 }: {
   params: { internId: string };
-  searchParams?: { status?: TaskStatus };
+  searchParams: Promise<{
+    status?: TaskStatus;
+    page?: string;
+  }>;
 }) {
   await requireUserWithRole("SUPERVISOR");
+  const parsedParams = await searchParams;
+  const currentPage = Math.max(1, parseInt(parsedParams.page || "1") || 1);
+  const statusFilter = parsedParams.status;
 
   // Fetch data
-  const [intern, progressLogs] = await Promise.all([
+  const [intern, progressLogs, totalTasks] = await Promise.all([
     prisma.user.findUnique({
       where: { id: params.internId, role: "INTERN" },
-      include: {
+      select: {
+        id: true,
+        name: true,
         assignedTasks: {
-          where: searchParams?.status ? { status: searchParams.status } : {},
+          where: statusFilter ? { status: statusFilter } : {},
           orderBy: { dueDate: "asc" },
+          skip: (currentPage - 1) * TASKS_PER_PAGE,
+          take: TASKS_PER_PAGE,
           include: {
             creator: { select: { name: true } },
             submissionLogs: {
               orderBy: { submittedAt: "desc" },
               include: { submittedBy: { select: { name: true } } },
             },
+          },
+        },
+        _count: {
+          select: {
+            assignedTasks: statusFilter
+              ? { where: { status: statusFilter } }
+              : true,
           },
         },
       },
@@ -49,6 +68,12 @@ export default async function Page({
       orderBy: { date: "desc" },
       include: {
         task: { select: { id: true, title: true } },
+      },
+    }),
+    prisma.task.count({
+      where: {
+        assignedId: params.internId,
+        ...(statusFilter ? { status: statusFilter } : {}),
       },
     }),
   ]);
@@ -62,6 +87,8 @@ export default async function Page({
     updatedAt: new Date(log.updatedAt),
   }));
 
+  const totalPages = Math.ceil(totalTasks / TASKS_PER_PAGE);
+
   return (
     <div className="space-y-4">
       <h1 className="text-2xl font-bold">Progress Report for {intern.name}</h1>
@@ -69,7 +96,7 @@ export default async function Page({
       <Tabs defaultValue="tasks">
         <TabsList>
           <TabsTrigger value="tasks">
-            Tasks ({intern.assignedTasks.length})
+            Tasks ({intern._count.assignedTasks})
           </TabsTrigger>
           <TabsTrigger value="logs">
             Progress Logs ({logsWithDates.length})
@@ -104,16 +131,39 @@ export default async function Page({
 
           {intern.assignedTasks.length === 0 ? (
             <p className="text-muted-foreground text-sm">
-              {searchParams?.status
-                ? `No ${searchParams.status.toLowerCase()} tasks`
+              {statusFilter
+                ? `No ${statusFilter.toLowerCase()} tasks`
                 : "No tasks assigned"}
             </p>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {intern.assignedTasks.map((task) => (
-                <TaskCard key={task.id} task={task} viewerRole="SUPERVISOR" />
-              ))}
-            </div>
+            <>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {intern.assignedTasks.map((task) => (
+                  <TaskCard key={task.id} task={task} viewerRole="SUPERVISOR" />
+                ))}
+              </div>
+
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <div className="flex justify-center gap-2 mt-6">
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map(
+                    (page) => (
+                      <Link
+                        key={page}
+                        href={`?status=${statusFilter || ""}&page=${page}`}
+                        className={`px-3 py-1 rounded border ${
+                          page === currentPage
+                            ? "bg-primary text-white"
+                            : "bg-muted hover:bg-muted/70"
+                        }`}
+                      >
+                        {page}
+                      </Link>
+                    )
+                  )}
+                </div>
+              )}
+            </>
           )}
         </TabsContent>
 
