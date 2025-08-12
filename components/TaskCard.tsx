@@ -140,9 +140,17 @@ const TaskCard = ({ task, viewerRole }: TaskCardProps) => {
           <p>Created: {dayjs(task.createdAt).format("MMM D, YYYY")}</p>
           <p>Due: {dayjs(task.dueDate).format("MMM D, YYYY")}</p>
           {localSubmission && (
-            <p>
-              <strong>Submission:</strong> {localSubmission}
-            </p>
+            <>
+              <p>
+                <strong>Submission:</strong> {localSubmission}
+              </p>
+              {logs.length > 0 && (
+                <p>
+                  <strong>Latest submission:</strong>{" "}
+                  {dayjs(logs[0].submittedAt).format("MMM D, YYYY h:mm A")}
+                </p>
+              )}
+            </>
           )}
         </div>
 

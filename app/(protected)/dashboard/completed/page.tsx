@@ -14,7 +14,7 @@ export default async function CompletedPage() {
     <InternView
       userId={dbUser.id}
       name={dbUser.name}
-      currentStatus="COMPLETED"
+      currentStatus="COMPLETED_LATE"
     />
   );
 }

@@ -5,6 +5,7 @@ import SupervisorView from "@/components/supervisor/SupervisorView";
 import InternView from "@/components/intern/InternView";
 import React from "react";
 import { redirect } from "next/navigation";
+import { markOverdueTasksAction } from "@/app/actions/markOverdue";
 
 const DashboardPage = async () => {
   // User authentication
@@ -21,11 +22,17 @@ const DashboardPage = async () => {
     },
   });
 
-  if (!dbUser?.onboardingCompleted) {
+  if (!dbUser) {
+    throw new Error("User not found in database");
+  }
+
+  await markOverdueTasksAction(dbUser.id);
+
+  if (!dbUser.onboardingCompleted) {
     redirect("/onboarding");
   }
 
-  if (!dbUser || (dbUser.role !== "INTERN" && dbUser.role !== "SUPERVISOR")) {
+  if (dbUser.role !== "INTERN" && dbUser.role !== "SUPERVISOR") {
     return (
       <div className="text-center mt-10 text-red-600">
         Access denied. You do not have permission to view this dashboard.
@@ -43,7 +50,7 @@ const DashboardPage = async () => {
           <InternView
             userId={dbUser.id}
             name={dbUser.name}
-            currentStatus="TODO" // default: TODO tasks
+            currentStatus="TODO_OVERDUE" // default now shows TODO + OVERDUE
           />
         )}
       </main>

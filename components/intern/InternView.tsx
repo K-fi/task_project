@@ -2,21 +2,32 @@ import { prisma } from "@/lib/db";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import TaskCard from "../TaskCard";
 import Link from "next/link";
+import { taskStatusRoutes } from "@/lib/statusRoutes";
 import { TaskStatus } from "@/lib/generated/prisma";
-import { taskStatusRoutes } from "@/lib/statusRoutes"; // optional helper for cleaner links
+
+type ExtraStatus = "ALL" | "TODO_OVERDUE" | "COMPLETED_LATE";
 
 interface InternViewProps {
   userId: string;
   name: string;
-  currentStatus: "ALL" | TaskStatus;
+  currentStatus: ExtraStatus | TaskStatus;
 }
 
 const InternView = async ({ userId, name, currentStatus }: InternViewProps) => {
+  let where: any = { assignedId: userId };
+
+  if (currentStatus === "ALL") {
+    // no status filter
+  } else if (currentStatus === "TODO_OVERDUE") {
+    where.status = { in: [TaskStatus.TODO, TaskStatus.OVERDUE] };
+  } else if (currentStatus === "COMPLETED_LATE") {
+    where.status = { in: [TaskStatus.COMPLETED, TaskStatus.LATE] };
+  } else {
+    where.status = currentStatus;
+  }
+
   const tasks = await prisma.task.findMany({
-    where: {
-      assignedId: userId,
-      ...(currentStatus !== "ALL" ? { status: currentStatus } : {}),
-    },
+    where,
     orderBy: { dueDate: "asc" },
     include: {
       creator: { select: { name: true } },
@@ -44,18 +55,27 @@ const InternView = async ({ userId, name, currentStatus }: InternViewProps) => {
     (task) => task.status === "COMPLETED" || task.status === "LATE"
   ).length;
 
-  // Reordered filters with TODO first, then other statuses, then ALL
-  const filters: (TaskStatus | "ALL")[] = [
-    "TODO",
-    ...Object.values(TaskStatus).filter(status => status !== "TODO"),
-    "ALL"
+  // Filters: Combine TODO+OVERDUE and COMPLETED+LATE
+  const filters: (ExtraStatus | TaskStatus)[] = [
+    "TODO_OVERDUE",
+    "COMPLETED_LATE",
+    ...Object.values(TaskStatus).filter(
+      (status) =>
+        status !== "TODO" &&
+        status !== "OVERDUE" &&
+        status !== "COMPLETED" &&
+        status !== "LATE"
+    ),
+    "ALL",
   ];
 
   return (
     <div className="space-y-6">
       <Card className="bg-muted">
         <CardHeader>
-          <CardTitle className="text-xl font-semibold">Welcome, {name} 👋</CardTitle>
+          <CardTitle className="text-xl font-semibold">
+            Welcome, {name} 👋
+          </CardTitle>
         </CardHeader>
         <CardContent className="space-y-2">
           <p className="text-muted-foreground text-sm">
@@ -75,22 +95,28 @@ const InternView = async ({ userId, name, currentStatus }: InternViewProps) => {
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold">Your Tasks</h2>
 
-          {/* Filter buttons with page-based routing */}
+          {/* Filter buttons */}
           <div className="flex gap-2">
             {filters.map((status) => {
               const isActive = currentStatus === status;
+              const label =
+                status === "TODO_OVERDUE"
+                  ? "TODO"
+                  : status === "COMPLETED_LATE"
+                  ? "COMPLETED"
+                  : status;
 
               return (
                 <Link
                   key={status}
-                  href={taskStatusRoutes[status]}
+                  href={taskStatusRoutes[status] ?? "#"}
                   className={`text-sm px-2 py-1 rounded transition ${
                     isActive
                       ? "bg-primary text-white"
                       : "bg-muted text-muted-foreground hover:bg-muted/70"
                   }`}
                 >
-                  {status}
+                  {label}
                 </Link>
               );
             })}
@@ -99,7 +125,9 @@ const InternView = async ({ userId, name, currentStatus }: InternViewProps) => {
 
         {tasks.length === 0 ? (
           <Card className="p-6">
-            <p className="text-sm text-muted-foreground">You have no tasks assigned.</p>
+            <p className="text-sm text-muted-foreground">
+              You have no tasks assigned.
+            </p>
           </Card>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

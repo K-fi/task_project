@@ -3,6 +3,7 @@ import { userRequired } from "@/app/data/user/is-user-authenticated";
 import InternView from "@/components/intern/InternView";
 import { redirect } from "next/navigation";
 import { requireUserWithRole } from "@/lib/auth/requireUserWithRole";
+import { markOverdueTasksAction } from "@/app/actions/markOverdue";
 
 export default async function TodoPage() {
   const { user } = await userRequired();
@@ -11,10 +12,6 @@ export default async function TodoPage() {
   const dbUser = await requireUserWithRole("INTERN");
 
   return (
-    <InternView
-      userId={dbUser.id}
-      name={dbUser.name}
-      currentStatus="ALL"
-    />
+    <InternView userId={dbUser.id} name={dbUser.name} currentStatus="ALL" />
   );
 }
