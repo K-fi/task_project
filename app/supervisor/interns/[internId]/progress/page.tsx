@@ -8,6 +8,7 @@ import { TaskStatus } from "@/lib/generated/prisma";
 import TasksList from "@/components/supervisor/TasksList";
 
 export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export default async function Page({
   params,
@@ -19,13 +20,13 @@ export default async function Page({
   // First await the authentication check
   await requireUserWithRole("SUPERVISOR");
 
-  // Then properly await both params and searchParams
+  // Properly await both params and searchParams
   const [resolvedParams, resolvedSearchParams] = await Promise.all([
     Promise.resolve(params),
     Promise.resolve(searchParams),
   ]);
 
-  // Now we can safely use resolvedParams and resolvedSearchParams
+  // Now fetch all data using the resolved params
   const [intern, progressLogs, allTasks] = await Promise.all([
     prisma.user.findUnique({
       where: { id: resolvedParams.internId, role: "INTERN" },
@@ -84,7 +85,7 @@ export default async function Page({
 
         <TabsContent value="tasks">
           <TasksList
-            initialTasks={allTasks}
+            allTasks={allTasks}
             initialStatus={resolvedSearchParams.status}
             initialPage={
               resolvedSearchParams.page

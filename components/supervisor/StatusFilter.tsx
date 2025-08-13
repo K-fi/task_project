@@ -13,22 +13,20 @@ import { TaskStatus } from "@/lib/generated/prisma";
 export default function StatusFilter({
   currentStatus,
   onValueChange,
+  disabled = false,
 }: {
   currentStatus?: TaskStatus | "all";
   onValueChange: (value: TaskStatus | "all") => void;
+  disabled?: boolean;
 }) {
   return (
-    <Select value={currentStatus || "all"} onValueChange={onValueChange}>
+    <Select
+      value={currentStatus || "all"}
+      onValueChange={onValueChange}
+      disabled={disabled}
+    >
       <SelectTrigger className="w-[180px]">
-        <SelectValue
-          placeholder={
-            currentStatus && currentStatus !== "all"
-              ? `${currentStatus.charAt(0)}${currentStatus
-                  .slice(1)
-                  .toLowerCase()}`
-              : "All Statuses"
-          }
-        />
+        <SelectValue placeholder="Filter status" />
       </SelectTrigger>
       <SelectContent>
         <SelectItem value="all">All Statuses</SelectItem>
