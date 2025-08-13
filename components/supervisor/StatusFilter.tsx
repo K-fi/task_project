@@ -1,7 +1,6 @@
 // components/supervisor/StatusFilter.tsx
 "use client";
 
-import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import {
   Select,
   SelectContent,
@@ -13,30 +12,17 @@ import { TaskStatus } from "@/lib/generated/prisma";
 
 export default function StatusFilter({
   currentStatus,
+  onValueChange,
 }: {
-  currentStatus?: TaskStatus;
+  currentStatus?: TaskStatus | "all";
+  onValueChange: (value: TaskStatus | "all") => void;
 }) {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const pathname = usePathname();
-
-  const handleValueChange = (value: TaskStatus | "all") => {
-    const params = new URLSearchParams(searchParams.toString());
-    if (value === "all") {
-      params.delete("status");
-    } else {
-      params.set("status", value);
-    }
-    params.set("page", "1"); // Reset to first page when changing status
-    router.push(`${pathname}?${params.toString()}`);
-  };
-
   return (
-    <Select value={currentStatus || "all"} onValueChange={handleValueChange}>
+    <Select value={currentStatus || "all"} onValueChange={onValueChange}>
       <SelectTrigger className="w-[180px]">
         <SelectValue
           placeholder={
-            currentStatus
+            currentStatus && currentStatus !== "all"
               ? `${currentStatus.charAt(0)}${currentStatus
                   .slice(1)
                   .toLowerCase()}`
