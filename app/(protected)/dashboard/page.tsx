@@ -16,10 +16,8 @@ export default async function DashboardPage({
     status?: string;
   }>;
 }) {
-  // Await searchParams as required by Next.js 15
   const params = await searchParams;
 
-  // User authentication
   const { user } = await userRequired();
   if (!user) throw new Error("User not authenticated");
 
@@ -51,19 +49,18 @@ export default async function DashboardPage({
     );
   }
 
-  // Validate status parameter
   const validStatuses = [
     "ALL",
     "TODO_OVERDUE",
     "COMPLETED_LATE",
     ...Object.values(TaskStatus),
   ];
+
   const status =
     params.status && validStatuses.includes(params.status)
       ? (params.status as ExtraStatus | TaskStatus)
       : "TODO_OVERDUE";
 
-  // Parse page number
   const page = params.page || "1";
 
   return (
