@@ -171,6 +171,24 @@ export default function ProgressLog({
     currentPage * LOGS_PER_PAGE
   );
 
+  // --- Windowed Pagination Logic ---
+  const MAX_VISIBLE_PAGES = 5;
+
+  const getVisiblePages = () => {
+    if (totalPages <= MAX_VISIBLE_PAGES)
+      return Array.from({ length: totalPages }, (_, i) => i + 1);
+
+    let start = Math.max(1, currentPage - Math.floor(MAX_VISIBLE_PAGES / 2));
+    let end = start + MAX_VISIBLE_PAGES - 1;
+
+    if (end > totalPages) {
+      end = totalPages;
+      start = end - MAX_VISIBLE_PAGES + 1;
+    }
+
+    return Array.from({ length: end - start + 1 }, (_, i) => start + i);
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -293,7 +311,15 @@ export default function ProgressLog({
         {/* Pagination */}
         {totalPages > 1 && (
           <div className="flex justify-center gap-2 mt-2">
-            {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+            <Button
+              size="sm"
+              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+            >
+              &lt;
+            </Button>
+
+            {getVisiblePages().map((p) => (
               <Button
                 key={p}
                 size="sm"
@@ -303,6 +329,14 @@ export default function ProgressLog({
                 {p}
               </Button>
             ))}
+
+            <Button
+              size="sm"
+              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+              disabled={currentPage === totalPages}
+            >
+              &gt;
+            </Button>
           </div>
         )}
       </div>
