@@ -49,6 +49,42 @@ export default function ProgressLogsView({
 
   const clearDateFilter = () => setSelectedDate(null);
 
+  // ----------------------------
+  // CSV Export Helper Functions
+  // ----------------------------
+  const convertToCSV = (logsToExport: typeof filteredLogs) => {
+    const headers = ["Date", "Task", "Title", "Description", "Hours"];
+    const rows = logsToExport.map((log) => [
+      new Date(log.date).toLocaleDateString("en-US"),
+      log.task ? log.task.title : "General",
+      log.title,
+      log.description,
+      log.hoursWorked.toString(),
+    ]);
+
+    const csvContent = [headers, ...rows]
+      .map((row) =>
+        row
+          .map((field) => `"${field.replace(/"/g, '""')}"`) // escape quotes
+          .join(",")
+      )
+      .join("\n");
+
+    return csvContent;
+  };
+
+  const downloadCSV = (logsToExport: typeof filteredLogs, fileName: string) => {
+    const csv = convertToCSV(logsToExport);
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", fileName);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
@@ -78,7 +114,12 @@ export default function ProgressLogsView({
             </Button>
           )}
         </div>
-        <Button variant="outline">
+        <Button
+          variant="outline"
+          onClick={() =>
+            downloadCSV(filteredLogs, `${internName}-progress.csv`)
+          }
+        >
           <DownloadIcon className="h-4 w-4 mr-2" />
           Export CSV
         </Button>
