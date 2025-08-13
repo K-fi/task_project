@@ -1,4 +1,3 @@
-// components/supervisor/ProgressLogsView.tsx
 "use client";
 
 import { useState } from "react";
@@ -34,7 +33,6 @@ export default function ProgressLogsView({
   }[];
   internName: string;
 }) {
-  // Default to current date so filter applies initially
   const [selectedDate, setSelectedDate] = useState<Date | null>(new Date());
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
 
@@ -49,9 +47,7 @@ export default function ProgressLogsView({
       })
     : logs;
 
-  const clearDateFilter = () => {
-    setSelectedDate(null);
-  };
+  const clearDateFilter = () => setSelectedDate(null);
 
   return (
     <div className="space-y-4">
@@ -88,8 +84,8 @@ export default function ProgressLogsView({
         </Button>
       </div>
 
-      <div className="rounded-md border">
-        <Table>
+      <div className="overflow-x-auto rounded-md border">
+        <Table className="min-w-full">
           <TableHeader>
             <TableRow>
               <TableHead>Date</TableHead>
@@ -116,8 +112,12 @@ export default function ProgressLogsView({
                     <Badge variant="secondary">General</Badge>
                   )}
                 </TableCell>
-                <TableCell>{log.title}</TableCell>
-                <TableCell>{log.description}</TableCell>
+                <TableCell className="whitespace-normal break-words max-w-xs">
+                  {log.title}
+                </TableCell>
+                <TableCell className="whitespace-normal break-words max-w-sm">
+                  {log.description}
+                </TableCell>
                 <TableCell className="text-right">{log.hoursWorked}</TableCell>
               </TableRow>
             ))}

@@ -35,6 +35,8 @@ const dateTimeFormatter = new Intl.DateTimeFormat("en-GB", {
   hour12: false,
 });
 
+const LOGS_PER_PAGE = 6;
+
 export default function ProgressLog({
   tasks,
   initialDate,
@@ -62,6 +64,7 @@ export default function ProgressLog({
   const [refreshKey, setRefreshKey] = useState(0);
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
   const router = useRouter();
 
   const todayStart = useMemo(() => {
@@ -81,12 +84,9 @@ export default function ProgressLog({
     return toStartOfDay(selected).getTime() > todayStart.getTime();
   }, [selectedDate, todayStart]);
 
+  // ✅ Fixed: always load logs when selectedDate changes
   useEffect(() => {
     let mounted = true;
-
-    if (selectedDate === initialDate && refreshKey === 0) {
-      return;
-    }
 
     async function load() {
       setLoading(true);
@@ -106,6 +106,7 @@ export default function ProgressLog({
 
         setLogs(mappedLogs);
         logsRef.current = mappedLogs;
+        setCurrentPage(1); // Reset to first page on new date
       } catch (err) {
         console.error("load logs", err);
         if (mounted) {
@@ -121,7 +122,7 @@ export default function ProgressLog({
     return () => {
       mounted = false;
     };
-  }, [selectedDate, refreshKey, initialDate]);
+  }, [selectedDate, refreshKey]);
 
   function openCreateModal() {
     if (isSelectedFuture || saving) return;
@@ -163,6 +164,12 @@ export default function ProgressLog({
     const dateObj = typeof d === "string" ? new Date(d) : d;
     return dateTimeFormatter.format(dateObj);
   }
+
+  const totalPages = Math.ceil(logs.length / LOGS_PER_PAGE);
+  const paginatedLogs = logs.slice(
+    (currentPage - 1) * LOGS_PER_PAGE,
+    currentPage * LOGS_PER_PAGE
+  );
 
   return (
     <div className="space-y-4">
@@ -212,7 +219,7 @@ export default function ProgressLog({
       )}
 
       <div className="grid gap-3 relative">
-        {logs.length === 0 && !loading && (
+        {paginatedLogs.length === 0 && !loading && (
           <div className="rounded border p-4 bg-white shadow-sm">
             <p className="text-muted-foreground">No logs for this date.</p>
             <p className="text-xs mt-2 text-gray-500">
@@ -223,7 +230,7 @@ export default function ProgressLog({
           </div>
         )}
 
-        {logs.map((log) => (
+        {paginatedLogs.map((log) => (
           <div
             key={log.id}
             className="rounded border p-4 bg-white shadow-sm flex flex-col md:flex-row md:justify-between gap-3"
@@ -234,12 +241,11 @@ export default function ProgressLog({
                 <div className="text-xs text-gray-500">• You</div>
               </div>
 
-              {log.task && (
+              {log.task ? (
                 <div className="text-xs text-gray-500 mt-1">
                   Linked task: {log.task.title}
                 </div>
-              )}
-              {!log.task && (
+              ) : (
                 <div className="text-xs text-gray-500 mt-1">General</div>
               )}
 
@@ -281,6 +287,22 @@ export default function ProgressLog({
         {loading && (
           <div className="absolute inset-0 bg-white/70 flex items-center justify-center text-gray-600 font-medium">
             Loading logs...
+          </div>
+        )}
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="flex justify-center gap-2 mt-2">
+            {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+              <Button
+                key={p}
+                size="sm"
+                variant={p === currentPage ? "default" : "outline"}
+                onClick={() => setCurrentPage(p)}
+              >
+                {p}
+              </Button>
+            ))}
           </div>
         )}
       </div>
