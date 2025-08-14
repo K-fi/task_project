@@ -1,4 +1,3 @@
-// components/supervisor/TasksList.tsx
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
@@ -10,11 +9,11 @@ import { useRouter, usePathname, useSearchParams } from "next/navigation";
 const TASKS_PER_PAGE = 6;
 
 export default function TasksList({
-  allTasks = [], // Provide default empty array
+  allTasks = [],
   initialStatus,
   initialPage,
 }: {
-  allTasks?: any[]; // Make prop optional
+  allTasks?: any[];
   initialStatus?: TaskStatus;
   initialPage?: number;
 }) {
@@ -22,25 +21,20 @@ export default function TasksList({
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  // State for filtering and pagination
   const [statusFilter, setStatusFilter] = useState<TaskStatus | "all">(
     initialStatus || "all"
   );
   const [currentPage, setCurrentPage] = useState(initialPage || 1);
   const [isUpdatingURL, setIsUpdatingURL] = useState(false);
 
-  // Filter and paginate tasks client-side with null checks
   const { filteredTasks, totalPages, paginatedTasks } = useMemo(() => {
-    // Ensure allTasks exists before filtering
     const tasksToFilter = Array.isArray(allTasks) ? allTasks : [];
 
-    // Apply status filter
     const filtered =
       statusFilter === "all"
         ? tasksToFilter
         : tasksToFilter.filter((task) => task?.status === statusFilter);
 
-    // Calculate pagination
     const total = Math.ceil(filtered.length / TASKS_PER_PAGE);
     const start = (currentPage - 1) * TASKS_PER_PAGE;
     const paginated = filtered.slice(start, start + TASKS_PER_PAGE);
@@ -52,22 +46,15 @@ export default function TasksList({
     };
   }, [allTasks, statusFilter, currentPage]);
 
-  // Update URL when filters or page changes (debounced)
   useEffect(() => {
     const timer = setTimeout(() => {
       const params = new URLSearchParams(searchParams.toString());
 
-      if (statusFilter === "all") {
-        params.delete("status");
-      } else {
-        params.set("status", statusFilter);
-      }
+      if (statusFilter === "all") params.delete("status");
+      else params.set("status", statusFilter);
 
-      if (currentPage === 1) {
-        params.delete("page");
-      } else {
-        params.set("page", currentPage.toString());
-      }
+      if (currentPage === 1) params.delete("page");
+      else params.set("page", currentPage.toString());
 
       setIsUpdatingURL(true);
       router.replace(`${pathname}?${params.toString()}`, { scroll: false });
@@ -77,16 +64,35 @@ export default function TasksList({
     return () => clearTimeout(timer);
   }, [statusFilter, currentPage, pathname, router, searchParams]);
 
-  // Handle status filter change
   const handleStatusChange = (value: TaskStatus | "all") => {
     setStatusFilter(value);
     setCurrentPage(1);
   };
 
-  // Handle page change
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
   };
+
+  // Compute visible pages with ellipsis logic
+  const getVisiblePages = () => {
+    const maxVisible = 5;
+    if (totalPages <= maxVisible)
+      return Array.from({ length: totalPages }, (_, i) => i + 1);
+
+    let start = Math.max(2, currentPage - Math.floor(maxVisible / 2));
+    let end = start + maxVisible - 3;
+
+    if (end >= totalPages) {
+      end = totalPages - 1;
+      start = end - maxVisible + 3;
+    }
+
+    const pages = [];
+    for (let i = start; i <= end; i++) pages.push(i);
+    return pages;
+  };
+
+  const visiblePages = getVisiblePages();
 
   return (
     <>
@@ -114,22 +120,81 @@ export default function TasksList({
 
           {totalPages > 1 && (
             <div className="flex justify-center gap-2 mt-6">
-              {Array.from({ length: totalPages }, (_, i) => i + 1).map(
-                (page) => (
-                  <button
-                    key={page}
-                    onClick={() => handlePageChange(page)}
-                    disabled={isUpdatingURL}
-                    className={`px-3 py-1 rounded border ${
-                      page === currentPage
-                        ? "bg-primary text-white"
-                        : "bg-muted hover:bg-muted/70"
-                    } ${isUpdatingURL ? "opacity-50 cursor-not-allowed" : ""}`}
-                  >
-                    {page}
-                  </button>
-                )
+              {/* Previous */}
+              <button
+                onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
+                disabled={currentPage === 1 || isUpdatingURL}
+                className={`px-3 py-1 rounded border ${
+                  currentPage === 1 ? "opacity-50 cursor-not-allowed" : ""
+                }`}
+              >
+                &lt;
+              </button>
+
+              {/* First page */}
+              <button
+                onClick={() => handlePageChange(1)}
+                disabled={isUpdatingURL}
+                className={`px-3 py-1 rounded border ${
+                  currentPage === 1
+                    ? "bg-primary text-white"
+                    : "bg-muted hover:bg-muted/70"
+                }`}
+              >
+                1
+              </button>
+
+              {/* Left ellipsis */}
+              {visiblePages[0] > 2 && <span className="px-2">…</span>}
+
+              {/* Middle pages */}
+              {visiblePages.map((page) => (
+                <button
+                  key={page}
+                  onClick={() => handlePageChange(page)}
+                  disabled={isUpdatingURL}
+                  className={`px-3 py-1 rounded border ${
+                    page === currentPage
+                      ? "bg-primary text-white"
+                      : "bg-muted hover:bg-muted/70"
+                  }`}
+                >
+                  {page}
+                </button>
+              ))}
+
+              {/* Right ellipsis */}
+              {visiblePages[visiblePages.length - 1] < totalPages - 1 && (
+                <span className="px-2">…</span>
               )}
+
+              {/* Last page */}
+              <button
+                onClick={() => handlePageChange(totalPages)}
+                disabled={isUpdatingURL}
+                className={`px-3 py-1 rounded border ${
+                  currentPage === totalPages
+                    ? "bg-primary text-white"
+                    : "bg-muted hover:bg-muted/70"
+                }`}
+              >
+                {totalPages}
+              </button>
+
+              {/* Next */}
+              <button
+                onClick={() =>
+                  handlePageChange(Math.min(totalPages, currentPage + 1))
+                }
+                disabled={currentPage === totalPages || isUpdatingURL}
+                className={`px-3 py-1 rounded border ${
+                  currentPage === totalPages
+                    ? "opacity-50 cursor-not-allowed"
+                    : ""
+                }`}
+              >
+                &gt;
+              </button>
             </div>
           )}
         </>
