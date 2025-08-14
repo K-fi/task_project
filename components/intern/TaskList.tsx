@@ -91,23 +91,31 @@ export default function TaskList({
     setCurrentPage(page);
   };
 
-  // Ellipsis pagination
+  // ✅ Improved pagination logic (no duplicates, clean ellipses)
   const getVisiblePages = () => {
     const maxVisible = 5;
-    if (totalPages <= maxVisible)
+    if (totalPages <= maxVisible) {
       return Array.from({ length: totalPages }, (_, i) => i + 1);
-
-    let start = Math.max(2, currentPage - Math.floor(maxVisible / 2));
-    let end = start + maxVisible - 3;
-
-    if (end >= totalPages) {
-      end = totalPages - 1;
-      start = end - maxVisible + 3;
     }
 
-    const pages = [];
-    for (let i = start; i <= end; i++) pages.push(i);
-    return pages;
+    let start = Math.max(2, currentPage - 1);
+    let end = Math.min(totalPages - 1, currentPage + 1);
+
+    if (currentPage <= 3) {
+      start = 2;
+      end = 4;
+    } else if (currentPage >= totalPages - 2) {
+      start = totalPages - 3;
+      end = totalPages - 1;
+    }
+
+    return [
+      1,
+      ...(start > 2 ? ["…"] : []),
+      ...Array.from({ length: end - start + 1 }, (_, i) => start + i),
+      ...(end < totalPages - 1 ? ["…"] : []),
+      totalPages,
+    ];
   };
 
   const visiblePages = getVisiblePages();
@@ -214,52 +222,26 @@ export default function TaskList({
                 &lt;
               </button>
 
-              {/* First */}
-              <button
-                onClick={() => handlePageChange(1)}
-                disabled={isUpdatingURL}
-                className={`px-3 py-1 rounded border ${
-                  currentPage === 1
-                    ? "bg-primary text-white"
-                    : "bg-muted hover:bg-muted/70"
-                }`}
-              >
-                1
-              </button>
-
-              {visiblePages[0] > 2 && <span className="px-2">…</span>}
-
-              {visiblePages.map((page) => (
-                <button
-                  key={page}
-                  onClick={() => handlePageChange(page)}
-                  disabled={isUpdatingURL}
-                  className={`px-3 py-1 rounded border ${
-                    page === currentPage
-                      ? "bg-primary text-white"
-                      : "bg-muted hover:bg-muted/70"
-                  }`}
-                >
-                  {page}
-                </button>
-              ))}
-
-              {visiblePages[visiblePages.length - 1] < totalPages - 1 && (
-                <span className="px-2">…</span>
+              {visiblePages.map((p, idx) =>
+                p === "…" ? (
+                  <span key={`ellipsis-${idx}`} className="px-2">
+                    …
+                  </span>
+                ) : (
+                  <button
+                    key={p}
+                    onClick={() => handlePageChange(p as number)}
+                    disabled={isUpdatingURL}
+                    className={`px-3 py-1 rounded border ${
+                      p === currentPage
+                        ? "bg-primary text-white"
+                        : "bg-muted hover:bg-muted/70"
+                    }`}
+                  >
+                    {p}
+                  </button>
+                )
               )}
-
-              {/* Last */}
-              <button
-                onClick={() => handlePageChange(totalPages)}
-                disabled={isUpdatingURL}
-                className={`px-3 py-1 rounded border ${
-                  currentPage === totalPages
-                    ? "bg-primary text-white"
-                    : "bg-muted hover:bg-muted/70"
-                }`}
-              >
-                {totalPages}
-              </button>
 
               {/* Next */}
               <button

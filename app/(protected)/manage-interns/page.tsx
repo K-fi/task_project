@@ -2,8 +2,9 @@
 import { userRequired } from "@/app/data/user/is-user-authenticated";
 import { prisma } from "@/lib/db";
 import { redirect } from "next/navigation";
-import ManageInternsClient from "@/components/supervisor/ManageInterns";
+
 import { requireUserWithRole } from "@/lib/auth/requireUserWithRole";
+import ManageInterns from "@/components/supervisor/ManageInterns";
 
 export default async function ManageInternsPage() {
   //  Ensure only SUPERVISORs can view this page
@@ -27,7 +28,7 @@ export default async function ManageInternsPage() {
   });
 
   return (
-    <ManageInternsClient
+    <ManageInterns
       availableInterns={availableInterns}
       supervisedInterns={supervisedInterns}
     />

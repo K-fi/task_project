@@ -8,6 +8,22 @@ import { TaskStatus } from "@/lib/generated/prisma";
 
 type ExtraStatus = "ALL" | "TODO_OVERDUE" | "COMPLETED_LATE";
 
+type Task = {
+  id: string;
+  title: string;
+  description?: string | null;
+  dueDate?: Date | null;
+  priority: "LOW" | "MEDIUM" | "HIGH";
+  createdAt: Date;
+  status: string;
+};
+
+type Intern = {
+  id: string;
+  name: string;
+  assignedTasks: Task[];
+};
+
 export default async function DashboardPage({
   searchParams,
 }: {
@@ -31,9 +47,7 @@ export default async function DashboardPage({
     },
   });
 
-  if (!dbUser) {
-    throw new Error("User not found in database");
-  }
+  if (!dbUser) throw new Error("User not found in database");
 
   await markOverdueTasksAction(dbUser.id);
 
@@ -61,13 +75,30 @@ export default async function DashboardPage({
       ? (params.status as ExtraStatus | TaskStatus)
       : "TODO_OVERDUE";
 
-  const page = params.page || "1";
+  const page = params.page || "1"; // keep as string for InternView
+
+  // Fetch interns server-side
+  let internsData: Intern[] = [];
+  if (dbUser.role === "SUPERVISOR") {
+    internsData = await prisma.user.findMany({
+      where: {
+        supervisedBy: { some: { id: dbUser.id } },
+        role: "INTERN",
+      },
+      include: {
+        assignedTasks: true,
+      },
+    });
+  }
 
   return (
     <div className="min-h-screen bg-background">
       <main className="max-w-7xl mx-auto px-6 py-8">
         {dbUser.role === "SUPERVISOR" ? (
-          <SupervisorView userId={dbUser.id} name={dbUser.name} />
+          <SupervisorView
+            supervisorName={dbUser.name}
+            internsData={internsData}
+          />
         ) : (
           <InternView
             userId={dbUser.id}

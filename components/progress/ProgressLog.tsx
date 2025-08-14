@@ -36,6 +36,7 @@ const dateTimeFormatter = new Intl.DateTimeFormat("en-GB", {
 });
 
 const LOGS_PER_PAGE = 6;
+const MAX_VISIBLE_PAGES = 5;
 
 export default function ProgressLog({
   tasks,
@@ -84,7 +85,7 @@ export default function ProgressLog({
     return toStartOfDay(selected).getTime() > todayStart.getTime();
   }, [selectedDate, todayStart]);
 
-  // ✅ Fixed: always load logs when selectedDate changes
+  // Load logs when selectedDate changes
   useEffect(() => {
     let mounted = true;
 
@@ -106,7 +107,7 @@ export default function ProgressLog({
 
         setLogs(mappedLogs);
         logsRef.current = mappedLogs;
-        setCurrentPage(1); // Reset to first page on new date
+        setCurrentPage(1);
       } catch (err) {
         console.error("load logs", err);
         if (mounted) {
@@ -118,7 +119,6 @@ export default function ProgressLog({
     }
 
     load();
-
     return () => {
       mounted = false;
     };
@@ -171,22 +171,34 @@ export default function ProgressLog({
     currentPage * LOGS_PER_PAGE
   );
 
-  // --- Windowed Pagination Logic ---
-  const MAX_VISIBLE_PAGES = 5;
-
+  // Ellipsis-style pagination
   const getVisiblePages = () => {
-    if (totalPages <= MAX_VISIBLE_PAGES)
+    const pages: (number | string)[] = [];
+
+    if (totalPages <= MAX_VISIBLE_PAGES) {
       return Array.from({ length: totalPages }, (_, i) => i + 1);
-
-    let start = Math.max(1, currentPage - Math.floor(MAX_VISIBLE_PAGES / 2));
-    let end = start + MAX_VISIBLE_PAGES - 1;
-
-    if (end > totalPages) {
-      end = totalPages;
-      start = end - MAX_VISIBLE_PAGES + 1;
     }
 
-    return Array.from({ length: end - start + 1 }, (_, i) => start + i);
+    const left = Math.max(2, currentPage - 1);
+    const right = Math.min(totalPages - 1, currentPage + 1);
+
+    pages.push(1);
+
+    if (left > 2) {
+      pages.push("…");
+    }
+
+    for (let i = left; i <= right; i++) {
+      pages.push(i);
+    }
+
+    if (right < totalPages - 1) {
+      pages.push("…");
+    }
+
+    pages.push(totalPages);
+
+    return pages;
   };
 
   return (
@@ -313,26 +325,34 @@ export default function ProgressLog({
           <div className="flex justify-center gap-2 mt-2">
             <Button
               size="sm"
-              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
               disabled={currentPage === 1}
             >
               &lt;
             </Button>
 
-            {getVisiblePages().map((p) => (
-              <Button
-                key={p}
-                size="sm"
-                variant={p === currentPage ? "default" : "outline"}
-                onClick={() => setCurrentPage(p)}
-              >
-                {p}
-              </Button>
-            ))}
+            {getVisiblePages().map((p, index) =>
+              p === "…" ? (
+                <span key={`ellipsis-${index}`} className="px-2">
+                  …
+                </span>
+              ) : (
+                <Button
+                  key={p}
+                  size="sm"
+                  variant={p === currentPage ? "default" : "outline"}
+                  onClick={() => setCurrentPage(p as number)}
+                >
+                  {p}
+                </Button>
+              )
+            )}
 
             <Button
               size="sm"
-              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+              onClick={() =>
+                setCurrentPage(Math.min(totalPages, currentPage + 1))
+              }
               disabled={currentPage === totalPages}
             >
               &gt;
