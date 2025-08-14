@@ -8,22 +8,37 @@ export async function markOverdueTasksAction(userId?: string) {
   // Get the start of today (00:00:00 of current day)
   const startOfToday = dayjs().startOf("day").toDate();
 
-  const whereClause: any = {
-    // Due date is before today (meaning due date was yesterday or earlier)
-    dueDate: { lt: startOfToday },
-    status: TaskStatus.TODO,
-  };
-
+  const whereClauseBase: any = {};
   if (userId) {
-    whereClause.assignedId = userId; // filter by assigned user if provided
+    whereClauseBase.assignedId = userId;
   }
 
-  const result = await prisma.task.updateMany({
-    where: whereClause,
+  // 1️⃣ Mark TODO tasks with past dueDate as OVERDUE
+  const markOverdue = await prisma.task.updateMany({
+    where: {
+      ...whereClauseBase,
+      dueDate: { lt: startOfToday },
+      status: TaskStatus.TODO,
+    },
     data: {
       status: TaskStatus.OVERDUE,
     },
   });
 
-  return result.count;
+  // 2️⃣ Reset OVERDUE tasks with future dueDate back to TODO
+  const resetToTodo = await prisma.task.updateMany({
+    where: {
+      ...whereClauseBase,
+      dueDate: { gte: startOfToday },
+      status: TaskStatus.OVERDUE,
+    },
+    data: {
+      status: TaskStatus.TODO,
+    },
+  });
+
+  return {
+    markedOverdue: markOverdue.count,
+    resetToTodo: resetToTodo.count,
+  };
 }

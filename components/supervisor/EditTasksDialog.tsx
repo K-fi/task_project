@@ -23,7 +23,7 @@ interface EditTasksDialogProps {
     description?: string | null;
     dueDate?: Date | null;
     priority: "LOW" | "MEDIUM" | "HIGH";
-    createdAt: Date; // Ensure createdAt is included in the interface
+    createdAt: Date;
   }[];
 }
 
@@ -36,13 +36,21 @@ export default function EditTasksDialog({
   const [description, setDescription] = useState("");
   const [dueDate, setDueDate] = useState("");
   const [priority, setPriority] = useState<"LOW" | "MEDIUM" | "HIGH">("LOW");
+  const [filterDate, setFilterDate] = useState<string>(""); // for calendar filter
   const [isPending, startTransition] = useTransition();
   const [isOpen, setIsOpen] = useState(false);
   const router = useRouter();
 
-  // Sort tasks by createdAt date (newest first)
-  const sortedTasks = [...tasks].sort((a, b) => {
-    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+  // Sort tasks by createdAt (newest first)
+  const sortedTasks = [...tasks].sort(
+    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+  );
+
+  // Filtered tasks based on selected filter date
+  const filteredTasks = sortedTasks.filter((task) => {
+    if (!filterDate) return true; // show all if no date selected
+    if (!task.dueDate) return false;
+    return new Date(task.dueDate).toISOString().split("T")[0] === filterDate;
   });
 
   const handleSelectTask = (taskId: string) => {
@@ -115,18 +123,34 @@ export default function EditTasksDialog({
           <DialogDescription>
             {selectedTaskId
               ? "Modify task details below"
-              : "Select a task to edit"}
+              : "Select a task to edit (may sort by due date)"}
           </DialogDescription>
         </DialogHeader>
 
         {!selectedTaskId ? (
-          <div className="relative">
+          <div className="relative space-y-2">
+            {/* Calendar filter */}
+            <div className="flex gap-2 items-center">
+              <Input
+                type="date"
+                value={filterDate}
+                onChange={(e) => setFilterDate(e.target.value)}
+              />
+              <Button
+                variant="outline"
+                onClick={() => setFilterDate("")}
+                size="sm"
+              >
+                Show All
+              </Button>
+            </div>
+
             <fieldset
               disabled={isPending}
               className="space-y-2 max-h-[400px] overflow-y-auto pb-4"
             >
-              {sortedTasks.length > 0 ? (
-                sortedTasks.map((task) => (
+              {filteredTasks.length > 0 ? (
+                filteredTasks.map((task) => (
                   <Button
                     key={task.id}
                     variant="outline"
@@ -136,7 +160,12 @@ export default function EditTasksDialog({
                     <div className="truncate w-full text-left">
                       <div className="font-medium">{task.title}</div>
                       <div className="text-xs text-muted-foreground">
-                        Created: {new Date(task.createdAt).toLocaleDateString()}
+                        Created:{" "}
+                        {new Date(task.createdAt).toLocaleDateString("en-GB")}
+                        {task.dueDate &&
+                          ` | Due: ${new Date(task.dueDate).toLocaleDateString(
+                            "en-GB"
+                          )}`}
                       </div>
                     </div>
                   </Button>
@@ -148,9 +177,6 @@ export default function EditTasksDialog({
                 </div>
               )}
             </fieldset>
-            {sortedTasks.length > 8 && (
-              <div className="sticky bottom-0 left-0 right-0 h-6 bg-gradient-to-t from-background/80 to-transparent pointer-events-none" />
-            )}
           </div>
         ) : (
           <fieldset disabled={isPending} className="space-y-4">

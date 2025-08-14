@@ -3,16 +3,16 @@
 import { prisma } from "@/lib/db";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import TaskList from "./TaskList";
+import { TaskStatus } from "@/lib/generated/prisma";
 
 type ExtraStatus = "ALL" | "TODO_OVERDUE" | "COMPLETED_LATE";
-import { TaskStatus } from "@/lib/generated/prisma";
 
 interface InternViewProps {
   userId: string;
   name: string;
   searchParams: {
-    status: ExtraStatus | TaskStatus;
-    page: string;
+    status?: ExtraStatus | TaskStatus;
+    page?: string;
   };
 }
 
@@ -25,6 +25,24 @@ const InternView = async ({ userId, name, searchParams }: InternViewProps) => {
   });
 
   const supervisors = user?.supervisedBy || [];
+
+  // Fetch all tasks once
+  const allTasks = await prisma.task.findMany({
+    where: { assignedId: userId },
+    orderBy: { dueDate: "asc" },
+    include: {
+      creator: { select: { name: true } },
+      submissionLogs: {
+        select: {
+          id: true,
+          content: true,
+          submittedAt: true,
+          submittedBy: { select: { name: true } },
+        },
+        orderBy: { submittedAt: "desc" },
+      },
+    },
+  });
 
   return (
     <div className="space-y-6">
@@ -44,8 +62,11 @@ const InternView = async ({ userId, name, searchParams }: InternViewProps) => {
         </CardContent>
       </Card>
 
-      {/* Pass only userId + searchParams */}
-      <TaskList userId={userId} searchParams={searchParams} />
+      <TaskList
+        allTasks={allTasks}
+        initialStatus={searchParams.status}
+        initialPage={searchParams.page ? parseInt(searchParams.page) : 1}
+      />
     </div>
   );
 };
