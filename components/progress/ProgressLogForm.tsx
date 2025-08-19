@@ -10,11 +10,17 @@ import { useRouter } from "next/navigation";
 
 type Props = {
   taskId: string;
+  taskTitle: string; // NEW: pass the title from parent
   date: Date;
   onSaved?: () => void; // optional callback
 };
 
-export default function ProgressLogForm({ taskId, date, onSaved }: Props) {
+export default function ProgressLogForm({
+  taskId,
+  taskTitle,
+  date,
+  onSaved,
+}: Props) {
   const [description, setDescription] = useState("");
   const [hoursString, setHoursString] = useState("");
   const [isPending, startTransition] = useTransition();
@@ -34,6 +40,7 @@ export default function ProgressLogForm({ taskId, date, onSaved }: Props) {
       try {
         await createProgressLogAction({
           taskId,
+          title: taskTitle, // FIX: include title
           description: description.trim(),
           hoursWorked: parsedHours,
           date: date.toISOString().split("T")[0],
@@ -41,12 +48,10 @@ export default function ProgressLogForm({ taskId, date, onSaved }: Props) {
 
         setDescription("");
         setHoursString("");
-        // refresh the current route's server data
         router.refresh();
         if (onSaved) onSaved();
       } catch (err) {
         console.error("Failed to create progress log", err);
-        // show toast/UI error if you have one
       }
     });
   }

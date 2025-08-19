@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useMemo, useRef } from "react";
+import React, { useState, useMemo } from "react";
 import { DayPicker } from "react-day-picker";
 import "react-day-picker/dist/style.css";
 import { Button } from "@/components/ui/button";
@@ -8,10 +8,7 @@ import ProgressLogModal, {
   ProgressLogFormData,
 } from "@/components/progress/ProgressLogModal";
 import { Task } from "@/lib/generated/prisma";
-import {
-  getMyProgressLogsByDateAction,
-  deleteProgressLogAction,
-} from "@/app/actions/progressLogActions";
+import { deleteProgressLogAction } from "@/app/actions/progressLogActions";
 import { useRouter } from "next/navigation";
 
 export type ServerLog = {
@@ -41,30 +38,19 @@ const MAX_VISIBLE_PAGES = 5;
 export default function ProgressLog({
   tasks,
   initialDate,
-  initialLogs,
+  allLogs,
 }: {
   tasks: Task[];
   initialDate: string;
-  initialLogs: any[];
+  allLogs: any[];
 }) {
   const [selectedDate, setSelectedDate] = useState<string>(initialDate);
-  const [logs, setLogs] = useState<ServerLog[]>(() =>
-    initialLogs.map((log) => ({
-      ...log,
-      date: new Date(log.date),
-      createdAt: new Date(log.createdAt),
-      updatedAt: new Date(log.updatedAt),
-    }))
-  );
-  const logsRef = useRef<ServerLog[]>(logs);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editing, setEditing] = useState<ProgressLogFormData | undefined>(
     undefined
   );
-  const [refreshKey, setRefreshKey] = useState(0);
   const [saving, setSaving] = useState(false);
-  const [loading, setLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const router = useRouter();
 
@@ -85,44 +71,44 @@ export default function ProgressLog({
     return toStartOfDay(selected).getTime() > todayStart.getTime();
   }, [selectedDate, todayStart]);
 
-  // Load logs when selectedDate changes
-  useEffect(() => {
-    let mounted = true;
+  // Filter logs by selected date
+  const logsForDate = useMemo(() => {
+    const target = toStartOfDay(new Date(selectedDate)).getTime();
+    return allLogs
+      .filter((log) => toStartOfDay(new Date(log.date)).getTime() === target)
+      .map((log) => ({
+        ...log,
+        date: new Date(log.date),
+        createdAt: new Date(log.createdAt),
+        updatedAt: new Date(log.updatedAt),
+      }));
+  }, [allLogs, selectedDate]);
 
-    async function load() {
-      setLoading(true);
-      try {
-        const res = await getMyProgressLogsByDateAction({
-          date: selectedDate,
-        });
+  const totalPages = Math.ceil(logsForDate.length / LOGS_PER_PAGE);
+  const paginatedLogs = logsForDate.slice(
+    (currentPage - 1) * LOGS_PER_PAGE,
+    currentPage * LOGS_PER_PAGE
+  );
 
-        if (!mounted) return;
-
-        const mappedLogs = res.map((log: any) => ({
-          ...log,
-          date: new Date(log.date),
-          createdAt: new Date(log.createdAt),
-          updatedAt: new Date(log.updatedAt),
-        }));
-
-        setLogs(mappedLogs);
-        logsRef.current = mappedLogs;
-        setCurrentPage(1);
-      } catch (err) {
-        console.error("load logs", err);
-        if (mounted) {
-          setLogs(logsRef.current);
-        }
-      } finally {
-        if (mounted) setLoading(false);
-      }
+  // Fix: reset page if switching dates leaves you on an invalid page
+  React.useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(1);
     }
+  }, [logsForDate, totalPages, currentPage]);
 
-    load();
-    return () => {
-      mounted = false;
-    };
-  }, [selectedDate, refreshKey]);
+  async function handleDelete(id: string) {
+    if (saving) return;
+    setSaving(true);
+    try {
+      await deleteProgressLogAction({ id });
+      router.refresh(); // Refresh DB after delete/edit/add
+    } catch (err) {
+      console.error("delete failed", err);
+    } finally {
+      setSaving(false);
+    }
+  }
 
   function openCreateModal() {
     if (isSelectedFuture || saving) return;
@@ -146,58 +132,24 @@ export default function ProgressLog({
     setIsModalOpen(true);
   }
 
-  async function handleDelete(id: string) {
-    if (saving) return;
-    setSaving(true);
-    try {
-      await deleteProgressLogAction({ id });
-      setRefreshKey((k) => k + 1);
-      router.refresh();
-    } catch (err) {
-      console.error("delete failed", err);
-    } finally {
-      setSaving(false);
-    }
-  }
-
   function formatDateConsistent(d: Date | string) {
     const dateObj = typeof d === "string" ? new Date(d) : d;
     return dateTimeFormatter.format(dateObj);
   }
 
-  const totalPages = Math.ceil(logs.length / LOGS_PER_PAGE);
-  const paginatedLogs = logs.slice(
-    (currentPage - 1) * LOGS_PER_PAGE,
-    currentPage * LOGS_PER_PAGE
-  );
-
-  // Ellipsis-style pagination
+  // Pagination helper
   const getVisiblePages = () => {
     const pages: (number | string)[] = [];
-
     if (totalPages <= MAX_VISIBLE_PAGES) {
       return Array.from({ length: totalPages }, (_, i) => i + 1);
     }
-
     const left = Math.max(2, currentPage - 1);
     const right = Math.min(totalPages - 1, currentPage + 1);
-
     pages.push(1);
-
-    if (left > 2) {
-      pages.push("…");
-    }
-
-    for (let i = left; i <= right; i++) {
-      pages.push(i);
-    }
-
-    if (right < totalPages - 1) {
-      pages.push("…");
-    }
-
+    if (left > 2) pages.push("…");
+    for (let i = left; i <= right; i++) pages.push(i);
+    if (right < totalPages - 1) pages.push("…");
     pages.push(totalPages);
-
     return pages;
   };
 
@@ -249,7 +201,7 @@ export default function ProgressLog({
       )}
 
       <div className="grid gap-3 relative">
-        {paginatedLogs.length === 0 && !loading && (
+        {paginatedLogs.length === 0 && (
           <div className="rounded border p-4 bg-white shadow-sm">
             <p className="text-muted-foreground">No logs for this date.</p>
             <p className="text-xs mt-2 text-gray-500">
@@ -314,12 +266,6 @@ export default function ProgressLog({
           </div>
         ))}
 
-        {loading && (
-          <div className="absolute inset-0 bg-white/70 flex items-center justify-center text-gray-600 font-medium">
-            Loading logs...
-          </div>
-        )}
-
         {/* Pagination */}
         {totalPages > 1 && (
           <div className="flex justify-center gap-2 mt-2">
@@ -374,7 +320,6 @@ export default function ProgressLog({
         saving={saving}
         setSaving={setSaving}
         onSaved={() => {
-          setRefreshKey((k) => k + 1);
           router.refresh();
         }}
       />

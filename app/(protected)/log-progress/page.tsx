@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/db";
 import { requireUserWithRole } from "@/lib/auth/requireUserWithRole";
-import { startOfDay } from "date-fns";
 import ProgressLog from "@/components/progress/ProgressLog";
+import { startOfDay } from "date-fns";
 
 export const dynamic = "force-dynamic";
 
@@ -28,28 +28,18 @@ export default async function Page() {
     },
   });
 
-  // Fetch progress logs for today (initial date)
-  const start = today;
-  const end = new Date(today);
-  end.setDate(end.getDate() + 1);
-
-  const rawLogs = await prisma.progressLog.findMany({
-    where: {
-      userId: user.id,
-      date: {
-        gte: start,
-        lt: end,
-      },
-    },
+  // Fetch all progress logs for this user
+  const allLogs = await prisma.progressLog.findMany({
+    where: { userId: user.id },
     include: { task: { select: { id: true, title: true } } },
-    orderBy: { createdAt: "desc" },
+    orderBy: { date: "desc" },
   });
 
   return (
     <ProgressLog
       tasks={tasks}
       initialDate={today.toISOString()}
-      initialLogs={rawLogs}
+      allLogs={allLogs}
     />
   );
 }
