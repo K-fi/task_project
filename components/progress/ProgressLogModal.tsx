@@ -46,14 +46,12 @@ export default function ProgressLogModal({
   setSaving: React.Dispatch<React.SetStateAction<boolean>>;
   onSaved: () => void;
 }) {
-  // Form state
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [hoursString, setHoursString] = useState("");
   const [taskId, setTaskId] = useState<string | null>(null);
   const [date, setDate] = useState<Date>(defaultDate ?? new Date());
 
-  // Character limits
   const TITLE_LIMIT = 100;
   const DESCRIPTION_LIMIT = 500;
 
@@ -69,12 +67,10 @@ export default function ProgressLogModal({
     return new Date(y, m - 1, day);
   }
 
-  // Load form state
   useEffect(() => {
     if (initialData) {
       setHoursString(String(initialData.hoursWorked));
       setTaskId(initialData.taskId ?? null);
-
       const normalizedDate =
         typeof initialData.date === "string"
           ? parseDateInput(initialData.date.split("T")[0])
@@ -120,7 +116,6 @@ export default function ProgressLogModal({
     setSaving(true);
     try {
       const dateStr = formatDateInput(date);
-
       const finalTitle = title.trim();
       const finalDescription = description.trim();
 
@@ -154,7 +149,7 @@ export default function ProgressLogModal({
 
   return (
     <Dialog open={open} onOpenChange={(v) => !saving && onOpenChange(v)}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-h-[90vh] overflow-y-auto bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100">
         <DialogHeader>
           <DialogTitle>
             {initialData ? "Edit Progress" : "Log Progress"}
@@ -164,7 +159,9 @@ export default function ProgressLogModal({
         <div className="space-y-4">
           {/* Title field */}
           <div className="space-y-2">
-            <Label htmlFor="title">Title</Label>
+            <Label htmlFor="title" className="dark:text-gray-200">
+              Title
+            </Label>
             <Input
               id="title"
               type="text"
@@ -175,18 +172,21 @@ export default function ProgressLogModal({
               required
               maxLength={TITLE_LIMIT}
               aria-describedby="title-help"
-              className="w-full"
+              className="w-full bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600"
             />
             <div className="flex justify-between">
-              <p id="title-help" className="text-sm text-muted-foreground">
+              <p
+                id="title-help"
+                className="text-sm text-gray-600 dark:text-gray-300"
+              >
                 Brief summary of your work
               </p>
-              <span className="text-sm text-muted-foreground">
+              <span className="text-sm text-gray-600 dark:text-gray-300">
                 {TITLE_LIMIT - title.length} characters remaining
               </span>
             </div>
             {linkedTask && (
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-gray-500 dark:text-gray-300">
                 Linked task: {linkedTask.title}
               </p>
             )}
@@ -194,28 +194,28 @@ export default function ProgressLogModal({
 
           {/* Description field */}
           <div className="space-y-2">
-            <Label htmlFor="description">Description</Label>
-            <div className="relative">
-              <Textarea
-                id="description"
-                value={description}
-                placeholder="Describe what you worked on in detail..."
-                rows={3}
-                maxLength={500}
-                onChange={(e) => setDescription(e.target.value)}
-                aria-describedby="description-help"
-                className="resize-none w-full min-h-[80px] max-h-[200px] overflow-y-auto whitespace-pre-wrap"
-                style={{ overflowWrap: "anywhere" }}
-              />
-            </div>
+            <Label htmlFor="description" className="dark:text-gray-200">
+              Description
+            </Label>
+            <Textarea
+              id="description"
+              value={description}
+              placeholder="Describe what you worked on in detail..."
+              rows={3}
+              maxLength={500}
+              onChange={(e) => setDescription(e.target.value)}
+              aria-describedby="description-help"
+              className="resize-none w-full min-h-[80px] max-h-[200px] overflow-y-auto whitespace-pre-wrap bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600"
+              style={{ overflowWrap: "anywhere" }}
+            />
             <div className="flex justify-between">
               <p
                 id="description-help"
-                className="text-sm text-muted-foreground"
+                className="text-sm text-gray-600 dark:text-gray-300"
               >
                 Detailed notes about your progress
               </p>
-              <span className="text-sm text-muted-foreground">
+              <span className="text-sm text-gray-600 dark:text-gray-300">
                 {DESCRIPTION_LIMIT - description.length} characters remaining
               </span>
             </div>
@@ -223,7 +223,9 @@ export default function ProgressLogModal({
 
           {/* Hours worked */}
           <div className="space-y-2">
-            <Label htmlFor="hours">Hours Worked</Label>
+            <Label htmlFor="hours" className="dark:text-gray-200">
+              Hours Worked
+            </Label>
             <Input
               id="hours"
               type="number"
@@ -235,15 +237,21 @@ export default function ProgressLogModal({
               min="0.1"
               step="0.1"
               aria-describedby="hours-help"
+              className="bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600"
             />
-            <p id="hours-help" className="text-sm text-muted-foreground">
+            <p
+              id="hours-help"
+              className="text-sm text-gray-600 dark:text-gray-300"
+            >
               Enter time spent in hours (e.g., 1.5 for 1 hour 30 minutes)
             </p>
           </div>
 
           {/* Date */}
           <div className="space-y-2">
-            <Label htmlFor="date">Date</Label>
+            <Label htmlFor="date" className="dark:text-gray-200">
+              Date
+            </Label>
             <Input
               id="date"
               type="date"
@@ -252,18 +260,24 @@ export default function ProgressLogModal({
               max={formatDateInput(new Date())}
               disabled={saving}
               aria-describedby="date-help"
+              className="bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600"
             />
-            <p id="date-help" className="text-sm text-muted-foreground">
+            <p
+              id="date-help"
+              className="text-sm text-gray-600 dark:text-gray-300"
+            >
               Select the date when work was done
             </p>
           </div>
 
           {/* Task selector */}
           <div className="space-y-2">
-            <Label htmlFor="task">Related Task (optional)</Label>
+            <Label htmlFor="task" className="dark:text-gray-200">
+              Related Task (optional)
+            </Label>
             <select
               id="task"
-              className="w-full border rounded p-2 text-sm"
+              className="w-full border rounded p-2 text-sm bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600"
               value={taskId ?? ""}
               onChange={(e) =>
                 setTaskId(e.target.value === "" ? null : e.target.value)
@@ -278,7 +292,10 @@ export default function ProgressLogModal({
                 </option>
               ))}
             </select>
-            <p id="task-help" className="text-sm text-muted-foreground">
+            <p
+              id="task-help"
+              className="text-sm text-gray-600 dark:text-gray-300"
+            >
               Link to a specific task if applicable
             </p>
           </div>
@@ -289,10 +306,15 @@ export default function ProgressLogModal({
             variant="secondary"
             onClick={() => !saving && onOpenChange(false)}
             disabled={saving}
+            className="bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-gray-100 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
           >
             Cancel
           </Button>
-          <Button onClick={handleSave} disabled={!canSave || saving}>
+          <Button
+            onClick={handleSave}
+            disabled={!canSave || saving}
+            className="bg-blue-600 dark:bg-blue-500 text-white hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors"
+          >
             {saving ? "Saving..." : "Save"}
           </Button>
         </DialogFooter>

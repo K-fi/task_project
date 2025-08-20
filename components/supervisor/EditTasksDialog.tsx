@@ -37,7 +37,7 @@ export default function EditTasksDialog({
   const [dueDate, setDueDate] = useState("");
   const [priority, setPriority] = useState<"LOW" | "MEDIUM" | "HIGH">("LOW");
   const [filterDate, setFilterDate] = useState<string>("");
-  const [createdDate, setCreatedDate] = useState<string>(""); // keep track of createdAt
+  const [createdDate, setCreatedDate] = useState<string>("");
   const [isPending, startTransition] = useTransition();
   const [isOpen, setIsOpen] = useState(false);
   const router = useRouter();
@@ -63,15 +63,12 @@ export default function EditTasksDialog({
       task.dueDate ? new Date(task.dueDate).toISOString().split("T")[0] : ""
     );
     setPriority(task.priority);
-
-    // set created date (for due date restriction)
     setCreatedDate(new Date(task.createdAt).toISOString().split("T")[0]);
   };
 
   const handleSave = () => {
     if (!selectedTaskId || !title.trim()) return;
 
-    // Validation: prevent dueDate earlier than createdDate
     if (dueDate && createdDate && new Date(dueDate) < new Date(createdDate)) {
       alert("Due date cannot be earlier than the created date.");
       return;
@@ -126,7 +123,7 @@ export default function EditTasksDialog({
         </Button>
       </DialogTrigger>
 
-      <DialogContent>
+      <DialogContent className="bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100">
         <DialogHeader>
           <DialogTitle>Edit Tasks for {internName}</DialogTitle>
           <DialogDescription>
@@ -137,13 +134,13 @@ export default function EditTasksDialog({
         </DialogHeader>
 
         {!selectedTaskId ? (
-          /* Task list */
           <div className="relative space-y-2">
             <div className="flex gap-2 items-center">
               <Input
                 type="date"
                 value={filterDate}
                 onChange={(e) => setFilterDate(e.target.value)}
+                className="bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600"
               />
               <Button
                 variant="outline"
@@ -163,12 +160,12 @@ export default function EditTasksDialog({
                   <Button
                     key={task.id}
                     variant="outline"
-                    className="w-full justify-start text-left"
+                    className="w-full justify-start text-left bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
                     onClick={() => handleSelectTask(task.id)}
                   >
                     <div className="truncate w-full text-left">
                       <div className="font-medium">{task.title}</div>
-                      <div className="text-xs text-muted-foreground">
+                      <div className="text-xs text-gray-600 dark:text-gray-300">
                         Created:{" "}
                         {new Date(task.createdAt).toLocaleDateString("en-GB")}
                         {task.dueDate &&
@@ -180,7 +177,7 @@ export default function EditTasksDialog({
                   </Button>
                 ))
               ) : (
-                <div className="flex flex-col items-center justify-center h-[100px] text-muted-foreground">
+                <div className="flex flex-col items-center justify-center h-[100px] text-gray-500 dark:text-gray-300">
                   <p>No tasks available</p>
                   <p className="text-sm">Please assign tasks first</p>
                 </div>
@@ -188,11 +185,13 @@ export default function EditTasksDialog({
             </fieldset>
           </div>
         ) : (
-          /* Edit form */
           <fieldset disabled={isPending} className="space-y-4">
             {/* Title */}
             <div className="space-y-2">
-              <label htmlFor="task-title" className="text-sm font-medium">
+              <label
+                htmlFor="task-title"
+                className="text-sm font-medium dark:text-gray-200"
+              >
                 Title
               </label>
               <Input
@@ -202,16 +201,17 @@ export default function EditTasksDialog({
                 placeholder="Task title"
                 required
                 maxLength={100}
+                className="bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600"
               />
               <div className="flex justify-between">
-                <p className="text-sm text-muted-foreground">
+                <p className="text-sm text-gray-600 dark:text-gray-300">
                   Provide a clear and concise title
                 </p>
                 <span
                   className={`text-sm ${
                     title.length > 80
                       ? "text-orange-500"
-                      : "text-muted-foreground"
+                      : "text-gray-600 dark:text-gray-300"
                   }`}
                 >
                   {100 - title.length} characters remaining
@@ -221,30 +221,29 @@ export default function EditTasksDialog({
 
             {/* Description */}
             <div className="space-y-2">
-              <label htmlFor="task-description" className="text-sm font-medium">
+              <label
+                htmlFor="task-description"
+                className="text-sm font-medium dark:text-gray-200"
+              >
                 Description
               </label>
               <Textarea
                 id="task-description"
                 value={description}
-                onChange={(e) => {
-                  const value = e.target.value.slice(0, 500);
-                  setDescription(value);
-                }}
+                onChange={(e) => setDescription(e.target.value.slice(0, 500))}
                 placeholder="Task description"
                 maxLength={500}
-                className="resize-none w-full min-h-[80px] max-h-[200px] overflow-y-auto whitespace-pre-wrap"
-                style={{ overflowWrap: "anywhere" }}
+                className="resize-none w-full min-h-[80px] max-h-[200px] overflow-y-auto whitespace-pre-wrap bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600"
               />
               <div className="flex justify-between">
-                <p className="text-sm text-muted-foreground">
+                <p className="text-sm text-gray-600 dark:text-gray-300">
                   Provide detailed instructions
                 </p>
                 <span
                   className={`text-sm ${
                     description.length > 450
                       ? "text-orange-500"
-                      : "text-muted-foreground"
+                      : "text-gray-600 dark:text-gray-300"
                   }`}
                 >
                   {500 - description.length} characters remaining
@@ -254,7 +253,10 @@ export default function EditTasksDialog({
 
             {/* Due Date */}
             <div className="space-y-2">
-              <label htmlFor="task-due-date" className="text-sm font-medium">
+              <label
+                htmlFor="task-due-date"
+                className="text-sm font-medium dark:text-gray-200"
+              >
                 Due Date
               </label>
               <Input
@@ -262,16 +264,20 @@ export default function EditTasksDialog({
                 type="date"
                 value={dueDate}
                 onChange={(e) => setDueDate(e.target.value)}
-                min={new Date().toISOString().split("T")[0]} // Prevent choosing past dates
+                min={new Date().toISOString().split("T")[0]}
+                className="bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600"
               />
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-gray-600 dark:text-gray-300">
                 Cannot be earlier than today
               </p>
             </div>
 
             {/* Priority */}
             <div className="space-y-2">
-              <label htmlFor="task-priority" className="text-sm font-medium">
+              <label
+                htmlFor="task-priority"
+                className="text-sm font-medium dark:text-gray-200"
+              >
                 Priority
               </label>
               <select
@@ -280,7 +286,7 @@ export default function EditTasksDialog({
                 onChange={(e) =>
                   setPriority(e.target.value as "LOW" | "MEDIUM" | "HIGH")
                 }
-                className="w-full border rounded-md p-2 text-sm"
+                className="w-full border rounded-md p-2 text-sm bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600"
               >
                 <option value="LOW">Low</option>
                 <option value="MEDIUM">Medium</option>
@@ -294,12 +300,14 @@ export default function EditTasksDialog({
                 variant="destructive"
                 onClick={handleDelete}
                 disabled={isPending}
+                className="hover:bg-red-700 dark:hover:bg-red-600 transition-colors"
               >
                 {isPending ? "Deleting..." : "Delete Task"}
               </Button>
               <Button
                 onClick={handleSave}
                 disabled={isPending || !title.trim()}
+                className="hover:bg-gray-300 dark:hover:bg-gray-300 transition-colors"
               >
                 {isPending ? "Saving..." : "Save Changes"}
               </Button>
@@ -308,7 +316,7 @@ export default function EditTasksDialog({
             <Button
               variant="secondary"
               onClick={resetDialog}
-              className="w-full"
+              className="w-full bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 transition-colors"
               disabled={isPending}
             >
               Back to Task List
