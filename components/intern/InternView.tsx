@@ -46,7 +46,7 @@ const InternView = async ({ userId, name, searchParams }: InternViewProps) => {
 
   return (
     <div className="space-y-6">
-      <Card className="bg-muted">
+      <Card className="bg-gradient-to-r from-primary/10 via-primary/5 to-transparent border border-primary/20 shadow-md">
         <CardHeader>
           <CardTitle className="text-xl font-semibold">
             Welcome, {name} 👋

@@ -7,6 +7,7 @@ import TaskCard from "@/components/TaskCard";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 
 const TASKS_PER_PAGE = 6;
+const MAX_VISIBLE_PAGES = 5;
 
 export default function TasksList({
   allTasks = [],
@@ -27,6 +28,7 @@ export default function TasksList({
   const [currentPage, setCurrentPage] = useState(initialPage || 1);
   const [isUpdatingURL, setIsUpdatingURL] = useState(false);
 
+  // Filter + paginate tasks
   const { filteredTasks, totalPages, paginatedTasks } = useMemo(() => {
     const tasksToFilter = Array.isArray(allTasks) ? allTasks : [];
 
@@ -46,6 +48,7 @@ export default function TasksList({
     };
   }, [allTasks, statusFilter, currentPage]);
 
+  // Update URL on filter/page change
   useEffect(() => {
     const timer = setTimeout(() => {
       const params = new URLSearchParams(searchParams.toString());
@@ -73,22 +76,28 @@ export default function TasksList({
     setCurrentPage(page);
   };
 
-  // Compute visible pages with ellipsis logic
-  const getVisiblePages = () => {
-    const maxVisible = 5;
-    if (totalPages <= maxVisible)
+  // Compute visible pages with ellipses
+  const getVisiblePages = (): (number | string)[] => {
+    if (totalPages <= MAX_VISIBLE_PAGES) {
       return Array.from({ length: totalPages }, (_, i) => i + 1);
-
-    let start = Math.max(2, currentPage - Math.floor(maxVisible / 2));
-    let end = start + maxVisible - 3;
-
-    if (end >= totalPages) {
-      end = totalPages - 1;
-      start = end - maxVisible + 3;
     }
 
-    const pages = [];
+    let start = Math.max(2, currentPage - 1);
+    let end = Math.min(totalPages - 1, currentPage + 1);
+
+    if (currentPage <= 3) {
+      start = 2;
+      end = 4;
+    } else if (currentPage >= totalPages - 2) {
+      start = totalPages - 3;
+      end = totalPages - 1;
+    }
+
+    const pages: (number | string)[] = [1];
+    if (start > 2) pages.push("…");
     for (let i = start; i <= end; i++) pages.push(i);
+    if (end < totalPages - 1) pages.push("…");
+    pages.push(totalPages);
     return pages;
   };
 
@@ -96,6 +105,7 @@ export default function TasksList({
 
   return (
     <>
+      {/* Status Filters */}
       <div className="flex justify-between items-center mb-4">
         <StatusFilter
           currentStatus={statusFilter}
@@ -104,82 +114,61 @@ export default function TasksList({
         />
       </div>
 
+      {/* Empty state */}
       {filteredTasks.length === 0 ? (
-        <p className="text-muted-foreground text-sm">
+        <p className="text-muted-foreground text-sm dark:text-muted-foreground">
           {statusFilter !== "all"
             ? `No ${statusFilter.toLowerCase()} tasks`
             : "No tasks assigned"}
         </p>
       ) : (
         <>
+          {/* Task Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {paginatedTasks.map((task) => (
               <TaskCard key={task?.id} task={task} viewerRole="SUPERVISOR" />
             ))}
           </div>
 
+          {/* Pagination */}
           {totalPages > 1 && (
             <div className="flex justify-center gap-2 mt-6">
               {/* Previous */}
               <button
                 onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
                 disabled={currentPage === 1 || isUpdatingURL}
-                className={`px-3 py-1 rounded border ${
-                  currentPage === 1 ? "opacity-50 cursor-not-allowed" : ""
+                className={`px-3 py-1 rounded border dark:border-border ${
+                  currentPage === 1
+                    ? "opacity-50 cursor-not-allowed"
+                    : "bg-background dark:bg-background"
                 }`}
               >
                 &lt;
               </button>
 
-              {/* First page */}
-              <button
-                onClick={() => handlePageChange(1)}
-                disabled={isUpdatingURL}
-                className={`px-3 py-1 rounded border ${
-                  currentPage === 1
-                    ? "bg-primary text-white"
-                    : "bg-muted hover:bg-muted/70"
-                }`}
-              >
-                1
-              </button>
-
-              {/* Left ellipsis */}
-              {visiblePages[0] > 2 && <span className="px-2">…</span>}
-
-              {/* Middle pages */}
-              {visiblePages.map((page) => (
-                <button
-                  key={page}
-                  onClick={() => handlePageChange(page)}
-                  disabled={isUpdatingURL}
-                  className={`px-3 py-1 rounded border ${
-                    page === currentPage
-                      ? "bg-primary text-white"
-                      : "bg-muted hover:bg-muted/70"
-                  }`}
-                >
-                  {page}
-                </button>
-              ))}
-
-              {/* Right ellipsis */}
-              {visiblePages[visiblePages.length - 1] < totalPages - 1 && (
-                <span className="px-2">…</span>
+              {visiblePages.map((p, idx) =>
+                typeof p === "string" ? (
+                  <span
+                    key={`ellipsis-${idx}`}
+                    className="px-2 text-foreground dark:text-foreground"
+                  >
+                    {p}
+                  </span>
+                ) : (
+                  <button
+                    key={`page-${p}-${idx}`}
+                    onClick={() => handlePageChange(p)}
+                    disabled={isUpdatingURL}
+                    className={`px-3 py-1 rounded border dark:border-border ${
+                      p === currentPage
+                        ? "bg-primary text-primary-foreground dark:bg-primary dark:text-primary-foreground"
+                        : "bg-background text-foreground dark:bg-background dark:text-foreground hover:bg-muted/70 dark:hover:bg-muted/60"
+                    }`}
+                  >
+                    {p}
+                  </button>
+                )
               )}
-
-              {/* Last page */}
-              <button
-                onClick={() => handlePageChange(totalPages)}
-                disabled={isUpdatingURL}
-                className={`px-3 py-1 rounded border ${
-                  currentPage === totalPages
-                    ? "bg-primary text-white"
-                    : "bg-muted hover:bg-muted/70"
-                }`}
-              >
-                {totalPages}
-              </button>
 
               {/* Next */}
               <button
@@ -187,10 +176,10 @@ export default function TasksList({
                   handlePageChange(Math.min(totalPages, currentPage + 1))
                 }
                 disabled={currentPage === totalPages || isUpdatingURL}
-                className={`px-3 py-1 rounded border ${
+                className={`px-3 py-1 rounded border dark:border-border ${
                   currentPage === totalPages
                     ? "opacity-50 cursor-not-allowed"
-                    : ""
+                    : "bg-background dark:bg-background"
                 }`}
               >
                 &gt;

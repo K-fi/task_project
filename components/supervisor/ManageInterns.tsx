@@ -194,7 +194,9 @@ export default function ManageInterns({
       {/* Remove Interns */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-red-600">Remove Interns</CardTitle>
+          <CardTitle className="text-red-600 dark:text-red-400">
+            Remove Interns
+          </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4" ref={removeRef}>
           <div className="relative">

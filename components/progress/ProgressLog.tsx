@@ -71,7 +71,6 @@ export default function ProgressLog({
     return toStartOfDay(selected).getTime() > todayStart.getTime();
   }, [selectedDate, todayStart]);
 
-  // Filter logs by selected date
   const logsForDate = useMemo(() => {
     const target = toStartOfDay(new Date(selectedDate)).getTime();
     return allLogs
@@ -90,11 +89,8 @@ export default function ProgressLog({
     currentPage * LOGS_PER_PAGE
   );
 
-  // Fix: reset page if switching dates leaves you on an invalid page
   React.useEffect(() => {
-    if (currentPage > totalPages) {
-      setCurrentPage(1);
-    }
+    if (currentPage > totalPages) setCurrentPage(1);
   }, [logsForDate, totalPages, currentPage]);
 
   async function handleDelete(id: string) {
@@ -102,7 +98,7 @@ export default function ProgressLog({
     setSaving(true);
     try {
       await deleteProgressLogAction({ id });
-      router.refresh(); // Refresh DB after delete/edit/add
+      router.refresh();
     } catch (err) {
       console.error("delete failed", err);
     } finally {
@@ -137,12 +133,10 @@ export default function ProgressLog({
     return dateTimeFormatter.format(dateObj);
   }
 
-  // Pagination helper
   const getVisiblePages = () => {
     const pages: (number | string)[] = [];
-    if (totalPages <= MAX_VISIBLE_PAGES) {
+    if (totalPages <= MAX_VISIBLE_PAGES)
       return Array.from({ length: totalPages }, (_, i) => i + 1);
-    }
     const left = Math.max(2, currentPage - 1);
     const right = Math.min(totalPages - 1, currentPage + 1);
     pages.push(1);
@@ -156,7 +150,7 @@ export default function ProgressLog({
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold">
+        <h2 className="text-lg font-semibold text-foreground dark:text-foreground">
           Progress — {new Date(selectedDate).toDateString()}
         </h2>
         <div className="flex items-center gap-3">
@@ -174,7 +168,7 @@ export default function ProgressLog({
 
       {isCalendarOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-white p-4 rounded shadow-lg">
+          <div className="bg-background dark:bg-background p-4 rounded shadow-lg">
             <DayPicker
               mode="single"
               selected={new Date(selectedDate)}
@@ -186,6 +180,7 @@ export default function ProgressLog({
                 setIsCalendarOpen(false);
               }}
               disabled={{ after: new Date() }}
+              className="text-foreground dark:text-foreground"
             />
             <div className="mt-3 flex justify-end">
               <Button
@@ -202,9 +197,11 @@ export default function ProgressLog({
 
       <div className="grid gap-3 relative">
         {paginatedLogs.length === 0 && (
-          <div className="rounded border p-4 bg-white shadow-sm">
-            <p className="text-muted-foreground">No logs for this date.</p>
-            <p className="text-xs mt-2 text-gray-500">
+          <div className="rounded border border-border bg-background dark:bg-background p-4 shadow-sm">
+            <p className="text-muted-foreground dark:text-muted-foreground">
+              No logs for this date.
+            </p>
+            <p className="text-xs mt-2 text-muted-foreground dark:text-muted-foreground">
               {isSelectedFuture
                 ? "You cannot log progress for future dates."
                 : 'Click "Log Progress" to add a new entry for this date.'}
@@ -215,25 +212,33 @@ export default function ProgressLog({
         {paginatedLogs.map((log) => (
           <div
             key={log.id}
-            className="rounded border p-4 bg-white shadow-sm flex flex-col md:flex-row md:justify-between gap-3"
+            className="rounded border border-border dark:border-border p-4 bg-background dark:bg-background shadow-sm flex flex-col md:flex-row md:justify-between gap-3"
           >
             <div>
               <div className="flex items-center gap-2">
-                <div className="text-sm font-medium">{log.title}</div>
-                <div className="text-xs text-gray-500">• You</div>
+                <div className="text-sm font-medium text-foreground dark:text-foreground">
+                  {log.title}
+                </div>
+                <div className="text-xs text-muted-foreground dark:text-muted-foreground">
+                  • You
+                </div>
               </div>
 
               {log.task ? (
-                <div className="text-xs text-gray-500 mt-1">
+                <div className="text-xs text-muted-foreground dark:text-muted-foreground mt-1">
                   Linked task: {log.task.title}
                 </div>
               ) : (
-                <div className="text-xs text-gray-500 mt-1">General</div>
+                <div className="text-xs text-muted-foreground dark:text-muted-foreground mt-1">
+                  General
+                </div>
               )}
 
-              <p className="mt-2 text-sm">{log.description}</p>
+              <p className="mt-2 text-sm text-foreground dark:text-foreground">
+                {log.description}
+              </p>
 
-              <div className="mt-2 text-xs text-gray-500">
+              <div className="mt-2 text-xs text-muted-foreground dark:text-muted-foreground">
                 Hours: {log.hoursWorked} • Created:{" "}
                 {formatDateConsistent(log.createdAt)} • Updated:{" "}
                 {formatDateConsistent(log.updatedAt)}
@@ -271,15 +276,19 @@ export default function ProgressLog({
           <div className="flex justify-center gap-2 mt-2">
             <Button
               size="sm"
+              variant="outline"
               onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
               disabled={currentPage === 1}
             >
               &lt;
             </Button>
 
-            {getVisiblePages().map((p, index) =>
+            {getVisiblePages().map((p, idx) =>
               p === "…" ? (
-                <span key={`ellipsis-${index}`} className="px-2">
+                <span
+                  key={idx}
+                  className="px-2 text-foreground dark:text-foreground"
+                >
                   …
                 </span>
               ) : (
@@ -296,6 +305,7 @@ export default function ProgressLog({
 
             <Button
               size="sm"
+              variant="outline"
               onClick={() =>
                 setCurrentPage(Math.min(totalPages, currentPage + 1))
               }
@@ -319,9 +329,7 @@ export default function ProgressLog({
         defaultDate={new Date(selectedDate)}
         saving={saving}
         setSaving={setSaving}
-        onSaved={() => {
-          router.refresh();
-        }}
+        onSaved={() => router.refresh()}
       />
     </div>
   );

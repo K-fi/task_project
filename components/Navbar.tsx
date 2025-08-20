@@ -1,4 +1,3 @@
-// components/Navbar.tsx
 import { Button } from "@/components/ui/button";
 import { AccessLevel } from "@/lib/generated/prisma";
 import {
@@ -7,6 +6,7 @@ import {
   RegisterLink,
 } from "@kinde-oss/kinde-auth-nextjs/components";
 import Link from "next/link";
+import { ModeToggle } from "@/components/mode-toggle";
 
 interface NavbarProps {
   name?: string;
@@ -21,7 +21,6 @@ export const Navbar = ({
 }: NavbarProps) => {
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background">
-      {/* Removed transparency/backdrop classes */}
       <div className="max-w-7xl mx-auto flex items-center justify-between h-16 px-6">
         {/* Left: Logo and Links */}
         <div className="flex items-center gap-6">
@@ -32,7 +31,6 @@ export const Navbar = ({
             TMProject
           </Link>
 
-          {/* Navigation Links */}
           {isAuthenticated ? (
             <>
               {role === "SUPERVISOR" ? (
@@ -69,8 +67,9 @@ export const Navbar = ({
           )}
         </div>
 
-        {/* Right: Auth or User Info */}
+        {/* Right: Auth + Theme Toggle */}
         <div className="flex items-center gap-4">
+          <ModeToggle /> {/* Dark mode toggle here */}
           {isAuthenticated ? (
             <>
               <span className="text-sm text-muted-foreground hidden sm:inline">

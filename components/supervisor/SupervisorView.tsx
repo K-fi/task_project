@@ -11,6 +11,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Search } from "lucide-react";
 import AssignTaskForm from "./AssignTaskForm";
 import EditTasksDialog from "./EditTasksDialog";
 
@@ -66,64 +68,87 @@ export default function SupervisorView({
   const handlePageChange = (page: number) => setCurrentPage(page);
 
   return (
-    <div className="space-y-6">
-      <Card className="bg-muted">
+    <div className="space-y-8">
+      {/* Welcome Card */}
+      <Card className="bg-gradient-to-r from-primary/10 via-primary/5 to-transparent border border-primary/20 shadow-md">
         <CardHeader>
-          <CardTitle className="text-xl font-semibold">
+          <CardTitle className="text-2xl font-bold">
             Welcome, Supervisor {supervisorName} 👋
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-muted-foreground text-sm">
-            You are currently supervising {internsData.length} intern
-            {internsData.length !== 1 ? "s" : ""}.
+          <p className="text-muted-foreground">
+            You are currently supervising{" "}
+            <span className="font-semibold text-primary">
+              {internsData.length}
+            </span>{" "}
+            intern{internsData.length !== 1 ? "s" : ""}.
           </p>
         </CardContent>
       </Card>
 
-      <div className="space-y-4">
-        <h2 className="text-lg font-medium">Your Interns</h2>
-
-        {/* Search Input */}
-        <input
-          type="text"
-          placeholder="Search interns..."
-          value={searchTerm}
-          onChange={(e) => {
-            setSearchTerm(e.target.value);
-            setCurrentPage(1); // Reset page when searching
-          }}
-          className="w-full p-2 border rounded-md mb-4"
-        />
+      <div className="space-y-6">
+        {/* Header + Search */}
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <h2 className="text-xl font-semibold">Your Interns</h2>
+          <div className="relative w-full md:w-72">
+            <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              type="text"
+              placeholder="Search interns..."
+              value={searchTerm}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="pl-9"
+            />
+          </div>
+        </div>
 
         {filteredInterns.length === 0 ? (
-          <Card className="p-6">
-            <p className="text-muted-foreground text-sm">
-              No interns found matching "{searchTerm}".
+          <Card className="p-6 text-center border-dashed">
+            <p className="text-muted-foreground">
+              No interns found matching{" "}
+              <span className="font-medium">"{searchTerm}"</span>.
             </p>
           </Card>
         ) : (
           <>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {/* Intern Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {paginatedInterns.map((intern) => {
                 const completedCount = intern.assignedTasks.filter((task) =>
                   isTaskCompleted(task.status)
                 ).length;
 
                 return (
-                  <Card key={intern.id} className="h-full">
+                  <Card
+                    key={intern.id}
+                    className="h-full border shadow-sm hover:shadow-md transition"
+                  >
                     <CardHeader>
-                      <CardTitle>{intern.name}</CardTitle>
+                      <CardTitle className="text-lg font-semibold">
+                        {intern.name}
+                      </CardTitle>
                     </CardHeader>
-                    <CardContent className="space-y-3">
-                      <p className="text-sm text-muted-foreground">
-                        Tasks Assigned: {intern.assignedTasks.length}
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        Tasks Completed: {completedCount}
-                      </p>
+                    <CardContent className="space-y-4">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Assigned:</span>
+                        <span className="font-medium text-blue-600">
+                          {intern.assignedTasks.length}
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">
+                          Completed:
+                        </span>
+                        <span className="font-medium text-green-600">
+                          {completedCount}
+                        </span>
+                      </div>
 
-                      <Button asChild variant="secondary" className="w-full">
+                      <Button asChild variant="outline" className="w-full">
                         <Link
                           href={`/supervisor/interns/${intern.id}/progress`}
                         >
@@ -157,46 +182,37 @@ export default function SupervisorView({
 
             {/* Pagination */}
             {totalPages > 1 && (
-              <div className="flex justify-center gap-2 mt-6">
-                <button
+              <div className="flex justify-center gap-2 mt-8">
+                <Button
+                  variant="outline"
+                  size="sm"
                   onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
                   disabled={currentPage === 1}
-                  className={`px-3 py-1 rounded border ${
-                    currentPage === 1 ? "opacity-50 cursor-not-allowed" : ""
-                  }`}
                 >
                   &lt;
-                </button>
-
+                </Button>
                 {Array.from({ length: totalPages }, (_, i) => i + 1).map(
                   (page) => (
-                    <button
+                    <Button
                       key={page}
+                      variant={page === currentPage ? "default" : "outline"}
+                      size="sm"
                       onClick={() => handlePageChange(page)}
-                      className={`px-3 py-1 rounded border ${
-                        page === currentPage
-                          ? "bg-primary text-white"
-                          : "bg-muted hover:bg-muted/70"
-                      }`}
                     >
                       {page}
-                    </button>
+                    </Button>
                   )
                 )}
-
-                <button
+                <Button
+                  variant="outline"
+                  size="sm"
                   onClick={() =>
                     handlePageChange(Math.min(totalPages, currentPage + 1))
                   }
                   disabled={currentPage === totalPages}
-                  className={`px-3 py-1 rounded border ${
-                    currentPage === totalPages
-                      ? "opacity-50 cursor-not-allowed"
-                      : ""
-                  }`}
                 >
                   &gt;
-                </button>
+                </Button>
               </div>
             )}
           </>

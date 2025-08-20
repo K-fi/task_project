@@ -8,6 +8,7 @@ import { prisma } from "@/lib/db";
 import { Navbar } from "@/components/Navbar";
 import { AccessLevel } from "@/lib/generated/prisma";
 import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
+import { ThemeProvider } from "@/components/theme-provider"; // ✅ import
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -51,22 +52,29 @@ export default async function RootLayout({
 
   return (
     <AuthProvider>
-      <html lang="en" className="scroll-smooth">
+      <html lang="en" className="scroll-smooth" suppressHydrationWarning>
         <body
           className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background text-foreground`}
         >
-          {/* Navbar will always have the latest session */}
-          <Navbar
-            name={userData?.name}
-            role={userData?.role}
-            isAuthenticated={!!user}
-          />
+          <ThemeProvider
+            attribute="class"
+            defaultTheme="system"
+            enableSystem
+            disableTransitionOnChange
+          >
+            {/* Navbar will always have the latest session */}
+            <Navbar
+              name={userData?.name}
+              role={userData?.role}
+              isAuthenticated={!!user}
+            />
 
-          <main className="max-w-7xl mx-auto px-4 py-20 min-h-screen">
-            {children}
-          </main>
+            <main className="max-w-7xl mx-auto px-4 py-20 min-h-screen">
+              {children}
+            </main>
 
-          <Toaster position="top-right" />
+            <Toaster position="top-right" />
+          </ThemeProvider>
         </body>
       </html>
     </AuthProvider>
