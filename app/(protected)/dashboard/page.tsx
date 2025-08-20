@@ -35,7 +35,9 @@ export default async function DashboardPage({
   const params = await searchParams;
 
   const { user } = await userRequired();
-  if (!user) throw new Error("User not authenticated");
+  if (!user) {
+    redirect("/"); // not logged in, go home
+  }
 
   const dbUser = await prisma.user.findUnique({
     where: { email: user.email as string },
@@ -47,7 +49,9 @@ export default async function DashboardPage({
     },
   });
 
-  if (!dbUser) throw new Error("User not found in database");
+  if (!dbUser) {
+    redirect("/"); // no user record, force back to home
+  }
 
   await markOverdueTasksAction(dbUser.id);
 
@@ -55,12 +59,9 @@ export default async function DashboardPage({
     redirect("/onboarding");
   }
 
+  // ✅ if role isn’t valid, clear session and send home
   if (dbUser.role !== "INTERN" && dbUser.role !== "SUPERVISOR") {
-    return (
-      <div className="text-center mt-10 text-red-600">
-        Access denied. You do not have permission to view this dashboard.
-      </div>
-    );
+    redirect("/api/auth/logout"); // or just redirect("/") if you don’t want logout
   }
 
   const validStatuses = [

@@ -4,10 +4,10 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/components/AuthProvider";
 import { Toaster } from "sonner";
-import { userRequired } from "@/app/data/user/is-user-authenticated";
 import { prisma } from "@/lib/db";
 import { Navbar } from "@/components/Navbar";
 import { AccessLevel } from "@/lib/generated/prisma";
+import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -29,12 +29,12 @@ export default async function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
-  // Attempt to get authenticated user, fallback to null if not authenticated
-  const { user } = await userRequired().catch(() => ({ user: null }));
+  // ✅ Get fresh session data every time layout loads
+  const { getUser } = getKindeServerSession();
+  const user = await getUser();
 
   let userData: { name: string; role: AccessLevel } | null = null;
 
-  // Fetch user data if authenticated
   if (user) {
     const dbUser = await prisma.user.findUnique({
       where: { email: user.email as string },
@@ -55,19 +55,17 @@ export default async function RootLayout({
         <body
           className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background text-foreground`}
         >
-          {/* Sticky Navbar - always visible */}
+          {/* Navbar will always have the latest session */}
           <Navbar
             name={userData?.name}
             role={userData?.role}
             isAuthenticated={!!user}
           />
 
-          {/* Main content with extra top padding to account for fixed navbar */}
           <main className="max-w-7xl mx-auto px-4 py-20 min-h-screen">
             {children}
           </main>
 
-          {/* Toast notifications */}
           <Toaster position="top-right" />
         </body>
       </html>
