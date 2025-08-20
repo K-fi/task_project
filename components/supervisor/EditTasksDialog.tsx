@@ -36,19 +36,18 @@ export default function EditTasksDialog({
   const [description, setDescription] = useState("");
   const [dueDate, setDueDate] = useState("");
   const [priority, setPriority] = useState<"LOW" | "MEDIUM" | "HIGH">("LOW");
-  const [filterDate, setFilterDate] = useState<string>(""); // for calendar filter
+  const [filterDate, setFilterDate] = useState<string>("");
+  const [createdDate, setCreatedDate] = useState<string>(""); // keep track of createdAt
   const [isPending, startTransition] = useTransition();
   const [isOpen, setIsOpen] = useState(false);
   const router = useRouter();
 
-  // Sort tasks by createdAt (newest first)
   const sortedTasks = [...tasks].sort(
     (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
   );
 
-  // Filtered tasks based on selected filter date
   const filteredTasks = sortedTasks.filter((task) => {
-    if (!filterDate) return true; // show all if no date selected
+    if (!filterDate) return true;
     if (!task.dueDate) return false;
     return new Date(task.dueDate).toISOString().split("T")[0] === filterDate;
   });
@@ -64,10 +63,19 @@ export default function EditTasksDialog({
       task.dueDate ? new Date(task.dueDate).toISOString().split("T")[0] : ""
     );
     setPriority(task.priority);
+
+    // set created date (for due date restriction)
+    setCreatedDate(new Date(task.createdAt).toISOString().split("T")[0]);
   };
 
   const handleSave = () => {
     if (!selectedTaskId || !title.trim()) return;
+
+    // Validation: prevent dueDate earlier than createdDate
+    if (dueDate && createdDate && new Date(dueDate) < new Date(createdDate)) {
+      alert("Due date cannot be earlier than the created date.");
+      return;
+    }
 
     startTransition(async () => {
       await updateTaskAction({
@@ -100,6 +108,7 @@ export default function EditTasksDialog({
     setDescription("");
     setDueDate("");
     setPriority("LOW");
+    setCreatedDate("");
   };
 
   const handleDialogChange = (open: boolean) => {
@@ -128,8 +137,8 @@ export default function EditTasksDialog({
         </DialogHeader>
 
         {!selectedTaskId ? (
+          /* Task list */
           <div className="relative space-y-2">
-            {/* Calendar filter */}
             <div className="flex gap-2 items-center">
               <Input
                 type="date"
@@ -179,7 +188,9 @@ export default function EditTasksDialog({
             </fieldset>
           </div>
         ) : (
+          /* Edit form */
           <fieldset disabled={isPending} className="space-y-4">
+            {/* Title */}
             <div className="space-y-2">
               <label htmlFor="task-title" className="text-sm font-medium">
                 Title
@@ -192,11 +203,23 @@ export default function EditTasksDialog({
                 required
                 maxLength={100}
               />
-              <p className="text-sm text-muted-foreground text-right">
-                {100 - title.length} characters remaining
-              </p>
+              <div className="flex justify-between">
+                <p className="text-sm text-muted-foreground">
+                  Provide a clear and concise title
+                </p>
+                <span
+                  className={`text-sm ${
+                    title.length > 80
+                      ? "text-orange-500"
+                      : "text-muted-foreground"
+                  }`}
+                >
+                  {100 - title.length} characters remaining
+                </span>
+              </div>
             </div>
 
+            {/* Description */}
             <div className="space-y-2">
               <label htmlFor="task-description" className="text-sm font-medium">
                 Description
@@ -208,19 +231,11 @@ export default function EditTasksDialog({
                   const value = e.target.value.slice(0, 500);
                   setDescription(value);
                 }}
-                onPaste={(e) => {
-                  const pastedText = e.clipboardData
-                    .getData("text/plain")
-                    .slice(0, 500 - description.length);
-                  const value = description + pastedText;
-                  setDescription(value.slice(0, 500));
-                }}
                 placeholder="Task description"
                 maxLength={500}
                 className="resize-none w-full min-h-[80px] max-h-[200px] overflow-y-auto whitespace-pre-wrap"
                 style={{ overflowWrap: "anywhere" }}
               />
-
               <div className="flex justify-between">
                 <p className="text-sm text-muted-foreground">
                   Provide detailed instructions
@@ -235,13 +250,9 @@ export default function EditTasksDialog({
                   {500 - description.length} characters remaining
                 </span>
               </div>
-              {description.length > 450 && (
-                <p className="text-xs text-orange-500">
-                  You're approaching the character limit
-                </p>
-              )}
             </div>
 
+            {/* Due Date */}
             <div className="space-y-2">
               <label htmlFor="task-due-date" className="text-sm font-medium">
                 Due Date
@@ -251,9 +262,14 @@ export default function EditTasksDialog({
                 type="date"
                 value={dueDate}
                 onChange={(e) => setDueDate(e.target.value)}
+                min={new Date().toISOString().split("T")[0]} // Prevent choosing past dates
               />
+              <p className="text-xs text-muted-foreground">
+                Cannot be earlier than today
+              </p>
             </div>
 
+            {/* Priority */}
             <div className="space-y-2">
               <label htmlFor="task-priority" className="text-sm font-medium">
                 Priority
@@ -272,6 +288,7 @@ export default function EditTasksDialog({
               </select>
             </div>
 
+            {/* Actions */}
             <div className="flex gap-2 justify-between pt-4">
               <Button
                 variant="destructive"
