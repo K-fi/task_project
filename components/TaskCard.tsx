@@ -215,7 +215,7 @@ const TaskCard = ({ task, viewerRole }: TaskCardProps) => {
                     <Button
                       onClick={handleSubmit}
                       disabled={isPending || !submission.trim()}
-                      className="w-full bg-blue-600 hover:bg-blue-700 text-white dark:bg-blue-500 dark:hover:bg-blue-600"
+                      className="w-full bg-black hover:bg-gray-700 text-white dark:bg-blue-500 dark:hover:bg-blue-600"
                     >
                       <CheckCircle className="w-4 h-4 mr-2" />
                       {isCompleted ? "Resubmit" : "Submit & Complete"}
