@@ -72,7 +72,7 @@ export default function SupervisorView({
       {/* Welcome Card */}
       <Card className="bg-gradient-to-r from-primary/10 via-primary/5 to-transparent border border-primary/20 shadow-md">
         <CardHeader>
-          <CardTitle className="text-2xl font-bold">
+          <CardTitle className="text-xl font-semibold">
             Welcome, Supervisor {supervisorName} 👋
           </CardTitle>
         </CardHeader>
@@ -106,7 +106,11 @@ export default function SupervisorView({
           </div>
         </div>
 
-        {filteredInterns.length === 0 ? (
+        {internsData.length === 0 ? (
+          <Card className="p-6 text-center border-dashed">
+            <p className="text-muted-foreground">No interns available.</p>
+          </Card>
+        ) : filteredInterns.length === 0 ? (
           <Card className="p-6 text-center border-dashed">
             <p className="text-muted-foreground">
               No interns found matching{" "}

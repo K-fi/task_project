@@ -33,14 +33,22 @@ export default function TaskList({
       let filtered = allTasks;
 
       if (statusFilter === "ALL") {
+        // no filter
       } else if (statusFilter === "TODO_OVERDUE") {
         filtered = allTasks.filter((t) =>
           [TaskStatus.TODO, TaskStatus.OVERDUE].includes(t.status)
         );
       } else if (statusFilter === "COMPLETED_LATE") {
-        filtered = allTasks.filter((t) =>
-          [TaskStatus.COMPLETED, TaskStatus.LATE].includes(t.status)
-        );
+        filtered = allTasks
+          .filter((t) =>
+            [TaskStatus.COMPLETED, TaskStatus.LATE].includes(t.status)
+          )
+          // sort descending by updatedAt/submittedAt
+          .sort(
+            (a, b) =>
+              new Date(b.updatedAt || b.submittedAt).getTime() -
+              new Date(a.updatedAt || a.submittedAt).getTime()
+          );
       } else {
         filtered = allTasks.filter((t) => t.status === statusFilter);
       }

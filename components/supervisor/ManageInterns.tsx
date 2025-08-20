@@ -241,7 +241,7 @@ export default function ManageInterns({
             variant="destructive"
             onClick={handleRemove}
             disabled={selectedToRemove.size === 0 || loading !== null}
-            className="mt-4"
+            className="mt-4 transition-all duration-300 hover:bg-red-700 dark:hover:bg-red-500"
           >
             {loading === "remove" && (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />

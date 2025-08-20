@@ -32,17 +32,26 @@ export default function TasksList({
   const { filteredTasks, totalPages, paginatedTasks } = useMemo(() => {
     const tasksToFilter = Array.isArray(allTasks) ? allTasks : [];
 
+    // Filter tasks based on status
     const filtered =
       statusFilter === "all"
         ? tasksToFilter
         : tasksToFilter.filter((task) => task?.status === statusFilter);
 
-    const total = Math.ceil(filtered.length / TASKS_PER_PAGE);
+    // Sort by updatedAt descending (latest first)
+    const sorted = filtered.slice().sort((a, b) => {
+      const dateA = new Date(a.updatedAt).getTime();
+      const dateB = new Date(b.updatedAt).getTime();
+      return dateB - dateA; // descending
+    });
+
+    // Paginate
+    const total = Math.ceil(sorted.length / TASKS_PER_PAGE);
     const start = (currentPage - 1) * TASKS_PER_PAGE;
-    const paginated = filtered.slice(start, start + TASKS_PER_PAGE);
+    const paginated = sorted.slice(start, start + TASKS_PER_PAGE);
 
     return {
-      filteredTasks: filtered,
+      filteredTasks: sorted,
       totalPages: total,
       paginatedTasks: paginated,
     };

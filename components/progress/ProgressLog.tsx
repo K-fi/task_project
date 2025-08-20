@@ -161,7 +161,7 @@ export default function ProgressLog({
             onClick={openCreateModal}
             disabled={isSelectedFuture || saving}
           >
-            Log Progress
+            Add Entry
           </Button>
         </div>
       </div>
@@ -254,6 +254,7 @@ export default function ProgressLog({
                     variant="secondary"
                     onClick={() => editLog(log)}
                     disabled={saving}
+                    className="transition-colors duration-200 bg-gray-200 text-gray-900 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
                   >
                     Edit
                   </Button>
@@ -262,6 +263,7 @@ export default function ProgressLog({
                     variant="destructive"
                     onClick={() => handleDelete(log.id)}
                     disabled={saving}
+                    className="transition-colors duration-200 bg-red-600 text-white hover:bg-red-700 dark:bg-red-500 dark:hover:bg-red-600"
                   >
                     Delete
                   </Button>
