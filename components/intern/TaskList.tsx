@@ -63,6 +63,13 @@ export default function TaskList({
       };
     }, [allTasks, statusFilter, currentPage]);
 
+  // 🔥 Auto go back if current page is empty
+  useEffect(() => {
+    if (paginatedTasks.length === 0 && currentPage > 1) {
+      setCurrentPage((prev) => prev - 1);
+    }
+  }, [paginatedTasks, currentPage]);
+
   // Update URL on filter/page change
   useEffect(() => {
     const timer = setTimeout(() => {
