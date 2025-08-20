@@ -90,17 +90,19 @@ const TaskCard = ({ task, viewerRole }: TaskCardProps) => {
   };
 
   return (
-    <Card className="relative border-muted">
+    <Card className="relative border border-gray-300 bg-gray-50 dark:bg-gray-800 dark:border-gray-700 shadow-sm">
       <CardHeader className="pb-2">
-        <CardTitle className="text-base font-medium">{task.title}</CardTitle>
-        <p className="text-xs text-muted-foreground">
+        <CardTitle className="text-base font-medium text-gray-900 dark:text-gray-100">
+          {task.title}
+        </CardTitle>
+        <p className="text-xs text-gray-500 dark:text-gray-400">
           Assigned by: {task.creator?.name ?? "Unknown"}
         </p>
       </CardHeader>
 
-      <CardContent className="text-sm space-y-2">
+      <CardContent className="text-sm space-y-2 text-gray-800 dark:text-gray-200">
         {task.description && (
-          <p className="text-muted-foreground">{task.description}</p>
+          <p className="text-gray-700 dark:text-gray-300">{task.description}</p>
         )}
 
         <div className="flex items-center justify-between">
@@ -136,7 +138,7 @@ const TaskCard = ({ task, viewerRole }: TaskCardProps) => {
           </span>
         </div>
 
-        <div className="text-xs text-muted-foreground space-y-1">
+        <div className="text-xs space-y-1">
           <p>Created: {dayjs(task.createdAt).format("MMM D, YYYY")}</p>
           <p>Due: {dayjs(task.dueDate).format("MMM D, YYYY")}</p>
           {localSubmission && (
@@ -154,13 +156,13 @@ const TaskCard = ({ task, viewerRole }: TaskCardProps) => {
           )}
         </div>
 
-        {/*  Dialog shown for both roles now */}
+        {/* Dialog */}
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
             <Button
               size="sm"
               variant="outline"
-              className="mt-2 w-full"
+              className="mt-2 w-full bg-gray-100 dark:bg-gray-700 dark:text-gray-200 text-gray-900 hover:bg-gray-200 dark:hover:bg-gray-600"
               disabled={viewerRole === "INTERN" && isPending}
             >
               {viewerRole === "INTERN" ? (
@@ -177,9 +179,9 @@ const TaskCard = ({ task, viewerRole }: TaskCardProps) => {
             </Button>
           </DialogTrigger>
 
-          <DialogContent className="max-w-lg">
+          <DialogContent className="max-w-lg bg-gray-50 dark:bg-gray-800">
             <DialogHeader>
-              <DialogTitle>
+              <DialogTitle className="text-gray-900 dark:text-gray-100">
                 {viewerRole === "INTERN"
                   ? isCompleted
                     ? "Resubmit Task"
@@ -205,8 +207,7 @@ const TaskCard = ({ task, viewerRole }: TaskCardProps) => {
                       className="resize-none w-full min-h-[100px] max-h-[200px] overflow-y-auto whitespace-pre-wrap"
                       style={{ overflowWrap: "anywhere" }}
                     />
-
-                    <p className="text-sm text-muted-foreground text-right">
+                    <p className="text-sm text-gray-500 text-right dark:text-gray-400">
                       {500 - submission.length} characters remaining
                     </p>
                   </div>
@@ -214,7 +215,7 @@ const TaskCard = ({ task, viewerRole }: TaskCardProps) => {
                     <Button
                       onClick={handleSubmit}
                       disabled={isPending || !submission.trim()}
-                      className="w-full"
+                      className="w-full bg-blue-600 hover:bg-blue-700 text-white dark:bg-blue-500 dark:hover:bg-blue-600"
                     >
                       <CheckCircle className="w-4 h-4 mr-2" />
                       {isCompleted ? "Resubmit" : "Submit & Complete"}
@@ -230,19 +231,19 @@ const TaskCard = ({ task, viewerRole }: TaskCardProps) => {
                     logs.map((log) => (
                       <div
                         key={log.id}
-                        className="border rounded p-2 text-xs text-muted-foreground"
+                        className="border rounded p-2 text-xs text-gray-700 dark:text-gray-300"
                       >
                         <div>
                           <strong>{log.submittedBy?.name ?? "Unknown"}:</strong>{" "}
                           {log.content}
                         </div>
-                        <div className="text-[10px] text-gray-500">
+                        <div className="text-[10px] text-gray-500 dark:text-gray-400">
                           {dayjs(log.submittedAt).format("MMM D, YYYY h:mm A")}
                         </div>
                       </div>
                     ))
                   ) : (
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-xs text-gray-600 dark:text-gray-400">
                       No submission history found.
                     </p>
                   )}
@@ -254,19 +255,19 @@ const TaskCard = ({ task, viewerRole }: TaskCardProps) => {
                   logs.map((log) => (
                     <div
                       key={log.id}
-                      className="border rounded p-2 text-xs text-muted-foreground"
+                      className="border rounded p-2 text-xs text-gray-700 dark:text-gray-300"
                     >
                       <div>
                         <strong>{log.submittedBy?.name ?? "Unknown"}:</strong>{" "}
                         {log.content}
                       </div>
-                      <div className="text-[10px] text-gray-500">
+                      <div className="text-[10px] text-gray-500 dark:text-gray-400">
                         {dayjs(log.submittedAt).format("MMM D, YYYY h:mm A")}
                       </div>
                     </div>
                   ))
                 ) : (
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-xs text-gray-600 dark:text-gray-400">
                     No submission history found.
                   </p>
                 )}
