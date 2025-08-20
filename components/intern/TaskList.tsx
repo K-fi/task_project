@@ -91,7 +91,7 @@ export default function TaskList({
     setCurrentPage(page);
   };
 
-  // ✅ Improved pagination logic (no duplicates, clean ellipses)
+  // Improved pagination logic (no duplicates, clean ellipses)
   const getVisiblePages = () => {
     const maxVisible = 5;
     if (totalPages <= maxVisible) {

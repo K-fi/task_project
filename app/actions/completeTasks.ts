@@ -4,7 +4,6 @@ import { prisma } from "@/lib/db";
 import { userRequired } from "@/app/data/user/is-user-authenticated";
 import { TaskStatus } from "@/lib/generated/prisma";
 
-
 export const completeTaskAction = async ({
   taskId,
   submission,
@@ -27,25 +26,19 @@ export const completeTaskAction = async ({
     include: { assignee: true },
   });
 
-  
-
   if (!task || task.assignedId !== dbUser.id) {
     throw new Error("You are not authorized to complete this task");
   }
 
   const now = new Date();
-  let newStatus: TaskStatus = TaskStatus.COMPLETED;
-  const isLate = task.dueDate.toDateString() < now.toDateString();
 
-  if (isLate) {
-    newStatus = TaskStatus.LATE;
-  }
+  // helper to normalize to start of the day (ignore time part)
+  const startOfDay = (date: Date) =>
+    new Date(date.getFullYear(), date.getMonth(), date.getDate());
 
-  
+  const isLate = startOfDay(task.dueDate) < startOfDay(now);
 
-/*  if (task.dueDate < now) {
-/    newStatus = TaskStatus.LATE;
-  }*/
+  const newStatus: TaskStatus = isLate ? TaskStatus.LATE : TaskStatus.COMPLETED;
 
   await prisma.$transaction([
     // 1. Update task's current status and submission
@@ -67,5 +60,5 @@ export const completeTaskAction = async ({
     }),
   ]);
 
-    return newStatus;
+  return newStatus;
 };
