@@ -10,7 +10,7 @@ import { useRouter } from "next/navigation";
 
 type Props = {
   taskId: string;
-  taskTitle: string; // NEW: pass the title from parent
+  taskTitle: string; // Parent task title
   date: Date;
   onSaved?: () => void; // optional callback
 };
@@ -21,6 +21,7 @@ export default function ProgressLogForm({
   date,
   onSaved,
 }: Props) {
+  const [logTitle, setLogTitle] = useState(""); // NEW: title for this log
   const [description, setDescription] = useState("");
   const [hoursString, setHoursString] = useState("");
   const [isPending, startTransition] = useTransition();
@@ -28,6 +29,7 @@ export default function ProgressLogForm({
 
   const parsedHours = parseFloat(hoursString);
   const canSave =
+    logTitle.trim().length > 0 &&
     description.trim().length > 0 &&
     !Number.isNaN(parsedHours) &&
     parsedHours > 0;
@@ -40,12 +42,15 @@ export default function ProgressLogForm({
       try {
         await createProgressLogAction({
           taskId,
-          title: taskTitle, // FIX: include title
+          taskTitle, // ✅ pass parent task title correctly
+          title: logTitle.trim(), // ✅ progress log title
           description: description.trim(),
           hoursWorked: parsedHours,
           date: date.toISOString().split("T")[0],
         });
 
+        // Reset form after save
+        setLogTitle("");
         setDescription("");
         setHoursString("");
         router.refresh();
@@ -59,11 +64,22 @@ export default function ProgressLogForm({
   return (
     <form onSubmit={handleSubmit} className="space-y-3 border p-4 rounded-md">
       <h3 className="font-semibold">Progress for {date.toDateString()}</h3>
+
+      {/* Progress Log Title */}
+      <Input
+        value={logTitle}
+        onChange={(e) => setLogTitle(e.target.value)}
+        placeholder="Progress log title"
+      />
+
+      {/* Progress Description */}
       <Textarea
         value={description}
         onChange={(e) => setDescription(e.target.value)}
         placeholder="Describe your progress..."
       />
+
+      {/* Hours Worked */}
       <Input
         type="number"
         step="0.1"
@@ -71,6 +87,8 @@ export default function ProgressLogForm({
         onChange={(e) => setHoursString(e.target.value)}
         placeholder="Hours worked"
       />
+
+      {/* Submit Button */}
       <Button type="submit" disabled={isPending || !canSave}>
         {isPending ? "Saving..." : "Save Progress"}
       </Button>

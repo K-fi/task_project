@@ -29,7 +29,7 @@ export default function ProgressLogsView({
     description: string;
     hoursWorked: number;
     date: Date;
-    task: { id: string; title: string } | null;
+    taskTitle?: string | null; // ✅ use taskTitle from schema
   }[];
   internName: string;
 }) {
@@ -53,10 +53,10 @@ export default function ProgressLogsView({
   // CSV Export Helper Functions
   // ----------------------------
   const convertToCSV = (logsToExport: typeof filteredLogs) => {
-    const headers = ["Date", "Task", "Title", "Description", "Hours"];
+    const headers = ["Date", "Task Title", "Log Title", "Description", "Hours"];
     const rows = logsToExport.map((log) => [
       new Date(log.date).toLocaleDateString("en-US"),
-      log.task ? log.task.title : "General",
+      log.taskTitle ? log.taskTitle : "General", // ✅ use taskTitle directly
       log.title,
       log.description,
       log.hoursWorked.toString(),
@@ -130,8 +130,8 @@ export default function ProgressLogsView({
           <TableHeader>
             <TableRow>
               <TableHead>Date</TableHead>
-              <TableHead>Task</TableHead>
-              <TableHead>Title</TableHead>
+              <TableHead>Task Title</TableHead>
+              <TableHead>Log Title</TableHead>
               <TableHead>Description</TableHead>
               <TableHead className="text-right">Hours</TableHead>
             </TableRow>
@@ -147,8 +147,8 @@ export default function ProgressLogsView({
                   })}
                 </TableCell>
                 <TableCell>
-                  {log.task ? (
-                    <Badge variant="outline">{log.task.title}</Badge>
+                  {log.taskTitle ? (
+                    <Badge variant="outline">{log.taskTitle}</Badge> // ✅ show taskTitle
                   ) : (
                     <Badge variant="secondary">General</Badge>
                   )}

@@ -25,6 +25,7 @@ export interface ProgressLogFormData {
   hoursWorked: number;
   date: Date | string;
   taskId: string | null;
+  taskTitle: string | null; // Added taskTitle field
 }
 
 export default function ProgressLogModal({
@@ -50,7 +51,9 @@ export default function ProgressLogModal({
   const [description, setDescription] = useState("");
   const [hoursString, setHoursString] = useState("");
   const [taskId, setTaskId] = useState<string | null>(null);
+  const [taskTitle, setTaskTitle] = useState<string | null>(null); // Added taskTitle state
   const [date, setDate] = useState<Date>(defaultDate ?? new Date());
+  const [useCustomTask, setUseCustomTask] = useState(false); // Toggle for custom task entry
 
   const TITLE_LIMIT = 100;
   const DESCRIPTION_LIMIT = 500;
@@ -71,6 +74,7 @@ export default function ProgressLogModal({
     if (initialData) {
       setHoursString(String(initialData.hoursWorked));
       setTaskId(initialData.taskId ?? null);
+      setTaskTitle(initialData.taskTitle ?? null);
       const normalizedDate =
         typeof initialData.date === "string"
           ? parseDateInput(initialData.date.split("T")[0])
@@ -79,11 +83,18 @@ export default function ProgressLogModal({
 
       setTitle(initialData.title);
       setDescription(initialData.description);
+      
+      // If there's a taskTitle but no taskId, show custom task input
+      if (initialData.taskTitle && !initialData.taskId) {
+        setUseCustomTask(true);
+      }
     } else {
       setTitle("");
       setDescription("");
       setHoursString("");
       setTaskId(null);
+      setTaskTitle(null);
+      setUseCustomTask(false);
       setDate(defaultDate ?? new Date());
     }
   }, [initialData, open, defaultDate, tasks]);
@@ -122,7 +133,8 @@ export default function ProgressLogModal({
       if (initialData?.id) {
         await updateProgressLogAction({
           id: initialData.id,
-          taskId,
+          taskId: useCustomTask ? null : taskId, // Send null if using custom task
+          taskTitle: useCustomTask ? taskTitle : null, // Send custom task title
           title: finalTitle,
           description: finalDescription,
           hoursWorked: parsedHours,
@@ -130,7 +142,8 @@ export default function ProgressLogModal({
         });
       } else {
         await createProgressLogAction({
-          taskId,
+          taskId: useCustomTask ? null : taskId, // Send null if using custom task
+          taskTitle: useCustomTask ? taskTitle : null, // Send custom task title
           title: finalTitle,
           description: finalDescription,
           hoursWorked: parsedHours,
@@ -185,11 +198,6 @@ export default function ProgressLogModal({
                 {TITLE_LIMIT - title.length} characters remaining
               </span>
             </div>
-            {linkedTask && (
-              <p className="text-xs text-gray-500 dark:text-gray-300">
-                Linked task: {linkedTask.title}
-              </p>
-            )}
           </div>
 
           {/* Description field */}
@@ -270,33 +278,72 @@ export default function ProgressLogModal({
             </p>
           </div>
 
-          {/* Task selector */}
+          {/* Task selection */}
           <div className="space-y-2">
-            <Label htmlFor="task" className="dark:text-gray-200">
-              Related Task (optional)
-            </Label>
-            <select
-              id="task"
-              className="w-full border rounded p-2 text-sm bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600"
-              value={taskId ?? ""}
-              onChange={(e) =>
-                setTaskId(e.target.value === "" ? null : e.target.value)
+            <Label className="dark:text-gray-200">Related Task</Label>
+            
+            {/* Toggle between task selection and custom task input */}
+            <div className="flex gap-2 mb-2">
+              <Button
+                type="button"
+                variant={!useCustomTask ? "default" : "outline"}
+                size="sm"
+                onClick={() => setUseCustomTask(false)}
+                className="flex-1"
+              >
+                Select Task
+              </Button>
+              <Button
+                type="button"
+                variant={useCustomTask ? "default" : "outline"}
+                size="sm"
+                onClick={() => setUseCustomTask(true)}
+                className="flex-1"
+              >
+                Custom Task
+              </Button>
+            </div>
+
+            {!useCustomTask ? (
+              <>
+                <select
+                  className="w-full border rounded p-2 text-sm bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600"
+                  value={taskId ?? ""}
+                  onChange={(e) =>
+                    setTaskId(e.target.value === "" ? null : e.target.value)
+                  }
+                  disabled={saving}
+                  aria-describedby="task-help"
+                >
+                  <option value="">-- General Progress --</option>
+                  {filteredTasks.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.title}
+                    </option>
+                  ))}
+                </select>
+                {linkedTask && (
+                  <p className="text-xs text-gray-500 dark:text-gray-300">
+                    Selected task: {linkedTask.title}
+                  </p>
+                )}
+              </>
+            ) : (
+              <Input
+                type="text"
+                placeholder="Enter task name..."
+                value={taskTitle ?? ""}
+                onChange={(e) => setTaskTitle(e.target.value || null)}
+                disabled={saving}
+                className="bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600"
+              />
+            )}
+            
+            <p id="task-help" className="text-sm text-gray-600 dark:text-gray-300">
+              {!useCustomTask 
+                ? "Link to a specific task if applicable" 
+                : "Enter the name of the task you worked on"
               }
-              disabled={saving}
-              aria-describedby="task-help"
-            >
-              <option value="">-- General Progress --</option>
-              {filteredTasks.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.title}
-                </option>
-              ))}
-            </select>
-            <p
-              id="task-help"
-              className="text-sm text-gray-600 dark:text-gray-300"
-            >
-              Link to a specific task if applicable
             </p>
           </div>
         </div>

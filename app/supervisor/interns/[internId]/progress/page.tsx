@@ -17,18 +17,16 @@ export default async function Page({
   params: { internId: string };
   searchParams: { status?: TaskStatus; page?: string };
 }) {
-  // First await the authentication check
   await requireUserWithRole("SUPERVISOR");
 
-  // Properly await both params and searchParams
   const [resolvedParams, resolvedSearchParams] = await Promise.all([
     Promise.resolve(params),
     Promise.resolve(searchParams),
   ]);
 
-  // Now fetch all data using the resolved params
   const [intern, progressLogs, allTasks] = await Promise.all([
     prisma.user.findUnique({
+      // keep as-is if this worked for you previously
       where: { id: resolvedParams.internId, role: "INTERN" },
       select: {
         id: true,
@@ -42,9 +40,16 @@ export default async function Page({
     }),
     prisma.progressLog.findMany({
       where: { userId: resolvedParams.internId },
-      orderBy: { date: "desc" },
-      include: {
-        task: { select: { id: true, title: true } },
+        orderBy: { createdAt: "desc" }, //  sort by latest created date
+      select: {
+        id: true,
+        title: true,
+        description: true,
+        hoursWorked: true,
+        date: true,
+        taskTitle: true, //  pull the stored task title directly
+        createdAt: true,
+        updatedAt: true,
       },
     }),
     prisma.task.findMany({
@@ -62,11 +67,14 @@ export default async function Page({
 
   if (!intern) return notFound();
 
-  const logsWithDates = progressLogs.map((log) => ({
-    ...log,
+  // Normalize dates and ensure we always provide a string for taskTitle to the view
+  const logsForView = progressLogs.map((log) => ({
+    id: log.id,
+    title: log.title,
+    description: log.description,
+    hoursWorked: log.hoursWorked,
     date: new Date(log.date),
-    createdAt: new Date(log.createdAt),
-    updatedAt: new Date(log.updatedAt),
+    taskTitle: log.taskTitle ?? "General", // ✅ no lookup, just use stored taskTitle
   }));
 
   return (
@@ -79,7 +87,7 @@ export default async function Page({
             Tasks ({intern._count.assignedTasks})
           </TabsTrigger>
           <TabsTrigger value="logs">
-            Progress Logs ({logsWithDates.length})
+            Progress Logs ({logsForView.length})
           </TabsTrigger>
         </TabsList>
 
@@ -96,7 +104,7 @@ export default async function Page({
         </TabsContent>
 
         <TabsContent value="logs">
-          <ProgressLogsView logs={logsWithDates} internName={intern.name} />
+          <ProgressLogsView logs={logsForView} internName={intern.name} />
         </TabsContent>
       </Tabs>
     </div>

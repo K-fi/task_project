@@ -19,7 +19,8 @@ export type ServerLog = {
   date: Date;
   createdAt: Date;
   updatedAt: Date;
-  task: { id: string; title: string } | null;
+  taskId: string | null;
+  taskTitle: string | null;
 };
 
 const dateTimeFormatter = new Intl.DateTimeFormat("en-GB", {
@@ -71,17 +72,19 @@ export default function ProgressLog({
     return toStartOfDay(selected).getTime() > todayStart.getTime();
   }, [selectedDate, todayStart]);
 
-  const logsForDate = useMemo(() => {
-    const target = toStartOfDay(new Date(selectedDate)).getTime();
-    return allLogs
-      .filter((log) => toStartOfDay(new Date(log.date)).getTime() === target)
-      .map((log) => ({
-        ...log,
-        date: new Date(log.date),
-        createdAt: new Date(log.createdAt),
-        updatedAt: new Date(log.updatedAt),
-      }));
-  }, [allLogs, selectedDate]);
+const logsForDate = useMemo(() => {
+  const target = toStartOfDay(new Date(selectedDate)).getTime();
+  return allLogs
+    .filter((log) => toStartOfDay(new Date(log.date)).getTime() === target)
+    .map((log) => ({
+      ...log,
+      date: new Date(log.date),
+      createdAt: new Date(log.createdAt),
+      updatedAt: new Date(log.updatedAt),
+    }))
+    .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime()); //  newest first
+}, [allLogs, selectedDate]);
+
 
   const totalPages = Math.ceil(logsForDate.length / LOGS_PER_PAGE);
   const paginatedLogs = logsForDate.slice(
@@ -123,8 +126,10 @@ export default function ProgressLog({
       description: String(log.description),
       hoursWorked: Number(log.hoursWorked),
       date: new Date(log.date),
-      taskId: log.task?.id ?? null,
+      taskId: log.taskId ?? null,
+      taskTitle: log.taskTitle ?? null,
     });
+
     setIsModalOpen(true);
   }
 
@@ -209,7 +214,7 @@ export default function ProgressLog({
           </div>
         )}
 
-        {paginatedLogs.map((log) => (
+        {paginatedLogs.map((log: ServerLog) => (
           <div
             key={log.id}
             className="rounded border border-border dark:border-border p-4 bg-background dark:bg-background shadow-sm flex flex-col md:flex-row md:justify-between gap-3"
@@ -224,9 +229,9 @@ export default function ProgressLog({
                 </div>
               </div>
 
-              {log.task ? (
+              {log.taskTitle ? (
                 <div className="text-xs text-muted-foreground dark:text-muted-foreground mt-1">
-                  Linked task: {log.task.title}
+                  Linked task: {log.taskTitle}
                 </div>
               ) : (
                 <div className="text-xs text-muted-foreground dark:text-muted-foreground mt-1">

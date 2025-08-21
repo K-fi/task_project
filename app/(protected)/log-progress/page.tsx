@@ -28,10 +28,9 @@ export default async function Page() {
     },
   });
 
-  // Fetch all progress logs for this user
+  // Fetch all progress logs for this user (❌ removed task include)
   const allLogs = await prisma.progressLog.findMany({
     where: { userId: user.id },
-    include: { task: { select: { id: true, title: true } } },
     orderBy: { date: "desc" },
   });
 

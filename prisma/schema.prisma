@@ -48,16 +48,14 @@ model Task {
   startDate   DateTime
   submission String?
 
-
-  
   // Relationships
   assignee    User?      @relation("AssignedTasks", fields: [assignedId], references: [id], onDelete: SetNull)
   assignedId  String?
   creator     User       @relation("CreatedTasks", fields: [creatorId], references: [id])
   creatorId   String
-  submissionLogs SubmissionLog[]  
+  submissionLogs SubmissionLog[]  // REMOVE onDelete: Cascade from here
   
-  progressLogs ProgressLog[]  // Progress updates for this task
+
   attachments File[]
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -68,25 +66,24 @@ model SubmissionLog {
   content      String   // e.g., link or description
   submittedAt  DateTime @default(now())
 
-  // Relationships
-  task         Task     @relation(fields: [taskId], references: [id])
+  // Relationships - ADD onDelete: Cascade HERE (correct placement)
+  task         Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
   taskId       String
 
   submittedBy  User     @relation(fields: [userId], references: [id])
   userId       String
 }
 
-
 model ProgressLog {
   id          String   @id @default(uuid())
-  title       String
+  title       String   // User-supplied title
   description String
   hoursWorked Float
   date        DateTime @default(now())
   
-  // Relationships
-  task       Task?     @relation(fields: [taskId], references: [id])
-  taskId     String?   // <-- make this nullable
+  // Store task title directly instead of foreign key relation
+  taskTitle   String?  // Task title (copied from task, no relation)
+  taskId      String?  // Optional reference, but no foreign key constraint
   
   user       User      @relation(fields: [userId], references: [id])
   userId     String

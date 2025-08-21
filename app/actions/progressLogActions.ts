@@ -5,15 +5,18 @@ import { revalidatePath } from "next/cache";
 import { requireUserWithRole } from "@/lib/auth/requireUserWithRole";
 
 type CreateProgressLogParams = {
-  taskId: string | null; // allow null for general logs
-  title: string; // user-supplied title (required)
+  taskId: string | null;      // reference only, no enforced relation
+  taskTitle: string | null;   // stored as plain string
+  title: string;              // required user-supplied title
   description: string;
   hoursWorked: number;
-  date: string; // YYYY-MM-DD
+  date: string;               // YYYY-MM-DD
 };
 
+// Create
 export async function createProgressLogAction({
   taskId,
+  taskTitle,
   title,
   description,
   hoursWorked,
@@ -21,36 +24,41 @@ export async function createProgressLogAction({
 }: CreateProgressLogParams) {
   const user = await requireUserWithRole("INTERN");
 
-  if (!title || !title.trim()) throw new Error("Title is required");
-  if (!description || !description.trim())
-    throw new Error("Description is required");
+  if (!title?.trim()) throw new Error("Title is required");
+  if (!description?.trim()) throw new Error("Description is required");
   if (Number.isNaN(hoursWorked) || hoursWorked <= 0) {
     throw new Error("Hours worked must be a positive number");
   }
 
-  const parsed = new Date(date);
-  parsed.setHours(0, 0, 0, 0);
+  const parsedDate = new Date(date);
+  parsedDate.setHours(0, 0, 0, 0);
 
-  // If taskId passed, validate it exists and optionally is assigned to this intern
+  let finalTaskTitle: string | null = null;
+
   if (taskId) {
-    const task = await prisma.task.findUnique({ where: { id: taskId } });
+    // fetch the task only to validate & get title
+    const task = await prisma.task.findUnique({
+      where: { id: taskId },
+      select: { id: true, title: true, assignedId: true },
+    });
     if (!task) throw new Error("Task not found");
     if (task.assignedId && task.assignedId !== user.id) {
       throw new Error("You are not assigned to this task");
     }
+    finalTaskTitle = task.title;
+  } else if (taskTitle) {
+    finalTaskTitle = taskTitle.trim();
   }
 
   const created = await prisma.progressLog.create({
     data: {
-      taskId: taskId ?? null,
-      title: title.trim(), // <-- store user's title always
+      taskId,
+      taskTitle: finalTaskTitle,
+      title: title.trim(),
       description: description.trim(),
       hoursWorked,
-      date: parsed,
+      date: parsedDate,
       userId: user.id,
-    },
-    include: {
-      task: { select: { id: true, title: true } },
     },
   });
 
@@ -58,11 +66,8 @@ export async function createProgressLogAction({
   return created;
 }
 
-export async function getMyProgressLogsByDateAction({
-  date,
-}: {
-  date: string;
-}) {
+// Get logs by date
+export async function getMyProgressLogsByDateAction({ date }: { date: string }) {
   const user = await requireUserWithRole("INTERN");
 
   const start = new Date(date);
@@ -73,21 +78,17 @@ export async function getMyProgressLogsByDateAction({
   return prisma.progressLog.findMany({
     where: {
       userId: user.id,
-      date: {
-        gte: start,
-        lt: end,
-      },
-    },
-    include: {
-      task: { select: { id: true, title: true } },
+      date: { gte: start, lt: end },
     },
     orderBy: { createdAt: "desc" },
   });
 }
 
+// Update
 export async function updateProgressLogAction({
   id,
   taskId,
+  taskTitle,
   title,
   description,
   hoursWorked,
@@ -95,6 +96,7 @@ export async function updateProgressLogAction({
 }: {
   id: string;
   taskId: string | null;
+  taskTitle: string | null;
   title: string;
   description: string;
   hoursWorked: number;
@@ -102,51 +104,61 @@ export async function updateProgressLogAction({
 }) {
   const user = await requireUserWithRole("INTERN");
   const existing = await prisma.progressLog.findUnique({ where: { id } });
+
   if (!existing) throw new Error("Progress log not found");
   if (existing.userId !== user.id) throw new Error("Not authorized");
 
-  if (!title || !title.trim()) throw new Error("Title is required");
-  if (!description || !description.trim())
-    throw new Error("Description is required");
+  if (!title?.trim()) throw new Error("Title is required");
+  if (!description?.trim()) throw new Error("Description is required");
   if (Number.isNaN(hoursWorked) || hoursWorked <= 0) {
     throw new Error("Hours worked must be a positive number");
   }
 
-  const parsed = new Date(date);
-  parsed.setHours(0, 0, 0, 0);
+  const parsedDate = new Date(date);
+  parsedDate.setHours(0, 0, 0, 0);
 
-  // If taskId passed, validate it exists and optionally is assigned to this intern
+  let finalTaskTitle: string | null = null;
+
   if (taskId) {
-    const task = await prisma.task.findUnique({ where: { id: taskId } });
+    const task = await prisma.task.findUnique({
+      where: { id: taskId },
+      select: { id: true, title: true, assignedId: true },
+    });
     if (!task) throw new Error("Task not found");
     if (task.assignedId && task.assignedId !== user.id) {
       throw new Error("You are not assigned to this task");
     }
+    finalTaskTitle = task.title;
+  } else if (taskTitle) {
+    finalTaskTitle = taskTitle.trim();
   }
 
   const updated = await prisma.progressLog.update({
     where: { id },
     data: {
-      taskId: taskId ?? null,
-      title: title.trim(), // <-- preserve user-supplied title
+      taskId,
+      taskTitle: finalTaskTitle,
+      title: title.trim(),
       description: description.trim(),
       hoursWorked,
-      date: parsed,
+      date: parsedDate,
     },
-    include: { task: { select: { id: true, title: true } } },
   });
 
   revalidatePath(`/log-progress/${user.id}`);
   return updated;
 }
 
+// Delete
 export async function deleteProgressLogAction({ id }: { id: string }) {
   const user = await requireUserWithRole("INTERN");
   const existing = await prisma.progressLog.findUnique({ where: { id } });
+
   if (!existing) throw new Error("Progress log not found");
   if (existing.userId !== user.id) throw new Error("Not authorized");
 
   await prisma.progressLog.delete({ where: { id } });
   revalidatePath(`/log-progress/${user.id}`);
+
   return { success: true };
 }
