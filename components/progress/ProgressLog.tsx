@@ -43,7 +43,7 @@ export default function ProgressLog({
 }: {
   tasks: Task[];
   initialDate: string;
-  allLogs: any[];
+  allLogs: ServerLog[];
 }) {
   const [selectedDate, setSelectedDate] = useState<string>(initialDate);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
@@ -53,6 +53,8 @@ export default function ProgressLog({
   );
   const [saving, setSaving] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const [bulkMode, setBulkMode] = useState(false);
+  const [selectedLogs, setSelectedLogs] = useState<Set<string>>(new Set());
   const router = useRouter();
 
   const todayStart = useMemo(() => {
@@ -61,23 +63,24 @@ export default function ProgressLog({
     return d;
   }, []);
 
-  function toStartOfDay(d: Date) {
+  const toStartOfDay = (d: Date) => {
     const x = new Date(d);
     x.setHours(0, 0, 0, 0);
     return x;
-  }
+  };
 
   const isSelectedFuture = useMemo(() => {
     const selected = new Date(selectedDate);
     return toStartOfDay(selected).getTime() > todayStart.getTime();
   }, [selectedDate, todayStart]);
 
-  // Collect all dates that have logs for showing dot
-  const logDatesSet = useMemo(() => {
-    return new Set(
-      allLogs.map((log) => toStartOfDay(new Date(log.date)).toDateString())
-    );
-  }, [allLogs]);
+  const logDatesSet = useMemo(
+    () =>
+      new Set(
+        allLogs.map((log) => toStartOfDay(new Date(log.date)).toDateString())
+      ),
+    [allLogs]
+  );
 
   const logsForDate = useMemo(() => {
     const target = toStartOfDay(new Date(selectedDate)).getTime();
@@ -89,7 +92,7 @@ export default function ProgressLog({
         createdAt: new Date(log.createdAt),
         updatedAt: new Date(log.updatedAt),
       }))
-      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime()); // newest first
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
   }, [allLogs, selectedDate]);
 
   const totalPages = Math.ceil(logsForDate.length / LOGS_PER_PAGE);
@@ -115,6 +118,23 @@ export default function ProgressLog({
     }
   }
 
+  async function handleBulkDelete() {
+    if (saving || selectedLogs.size === 0) return;
+    setSaving(true);
+    try {
+      for (const id of selectedLogs) {
+        await deleteProgressLogAction({ id });
+      }
+      setSelectedLogs(new Set());
+      setBulkMode(false);
+      router.refresh();
+    } catch (err) {
+      console.error("bulk delete failed", err);
+    } finally {
+      setSaving(false);
+    }
+  }
+
   function openCreateModal() {
     if (isSelectedFuture || saving) return;
     setEditing(undefined);
@@ -125,7 +145,6 @@ export default function ProgressLog({
     if (saving) return;
     if (toStartOfDay(new Date(log.date)).getTime() > todayStart.getTime())
       return;
-
     setEditing({
       id: log.id,
       title: log.title,
@@ -135,7 +154,6 @@ export default function ProgressLog({
       taskId: log.taskId ?? null,
       taskTitle: log.taskTitle ?? null,
     });
-
     setIsModalOpen(true);
   }
 
@@ -151,15 +169,33 @@ export default function ProgressLog({
     const left = Math.max(2, currentPage - 1);
     const right = Math.min(totalPages - 1, currentPage + 1);
     pages.push(1);
-    if (left > 2) pages.push("…");
+    if (left > 2) pages.push("...");
     for (let i = left; i <= right; i++) pages.push(i);
-    if (right < totalPages - 1) pages.push("…");
+    if (right < totalPages - 1) pages.push("...");
     pages.push(totalPages);
     return pages;
   };
 
+  const toggleSelectLog = (id: string) => {
+    setSelectedLogs((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedLogs.size === paginatedLogs.length) {
+      setSelectedLogs(new Set());
+    } else {
+      setSelectedLogs(new Set(paginatedLogs.map((log) => log.id)));
+    }
+  };
+
   return (
     <div className="space-y-4">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold text-foreground dark:text-foreground">
           Progress — {new Date(selectedDate).toDateString()}
@@ -174,16 +210,43 @@ export default function ProgressLog({
           >
             Add Entry
           </Button>
+          <Button
+            onClick={() => setBulkMode((prev) => !prev)}
+            size="sm"
+            variant={bulkMode ? "secondary" : "outline"}
+          >
+            {bulkMode ? "Cancel Bulk" : "Bulk Delete"}
+          </Button>
         </div>
       </div>
 
+      {/* Bulk Actions */}
+      {bulkMode && paginatedLogs.length > 0 && (
+        <div className="flex items-center gap-2">
+          <Button size="sm" variant="outline" onClick={toggleSelectAll}>
+            {selectedLogs.size === paginatedLogs.length
+              ? "Unselect All"
+              : "Select All"}
+          </Button>
+          <Button
+            size="sm"
+            variant="destructive"
+            onClick={handleBulkDelete}
+            disabled={selectedLogs.size === 0 || saving}
+          >
+            Delete Selected
+          </Button>
+        </div>
+      )}
+
+      {/* Calendar */}
       {isCalendarOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
           <div className="bg-background dark:bg-background p-4 rounded shadow-lg">
             <DayPicker
               mode="single"
               selected={new Date(selectedDate)}
-              onSelect={(date: Date | undefined) => {
+              onSelect={(date) => {
                 if (!date || saving) return;
                 const picked = toStartOfDay(date);
                 if (picked.getTime() > todayStart.getTime()) return;
@@ -196,7 +259,6 @@ export default function ProgressLog({
                 today: (date) =>
                   date.toDateString() === new Date().toDateString(),
               }}
-              // Inside DayPicker modifiersClassNames
               modifiersClassNames={{
                 hasLog:
                   "relative after:absolute after:bottom-1 after:left-1/2 after:-translate-x-1/2 after:w-1 after:h-1 after:rounded-full after:bg-primary dark:after:bg-primary/80",
@@ -216,9 +278,10 @@ export default function ProgressLog({
         </div>
       )}
 
+      {/* Log Cards */}
       <div className="grid gap-3 relative">
         {paginatedLogs.length === 0 && (
-          <div className="rounded border border-border bg-background dark:bg-background p-4 shadow-sm">
+          <div className="rounded border border-border bg-background dark:bg-background p-4 shadow-md">
             <p className="text-muted-foreground dark:text-muted-foreground">
               No logs for this date.
             </p>
@@ -230,69 +293,76 @@ export default function ProgressLog({
           </div>
         )}
 
-        {paginatedLogs.map((log: ServerLog) => (
-          <div
-            key={log.id}
-            className="rounded border border-border dark:border-border p-4 bg-background dark:bg-background shadow-sm flex flex-col md:flex-row md:justify-between gap-3"
-          >
-            <div>
-              <div className="flex items-center gap-2">
-                <div className="text-sm font-medium text-foreground dark:text-foreground">
-                  {log.title}
-                </div>
-                <div className="text-xs text-muted-foreground dark:text-muted-foreground">
-                  • You
+        {paginatedLogs.map((log) => {
+          const isSelected = selectedLogs.has(log.id);
+          return (
+            <div
+              key={log.id}
+              className={`rounded border-2 border-border dark:border-border p-4 bg-background dark:bg-background shadow-md hover:shadow-lg flex flex-col md:flex-row md:justify-between gap-3 transition-all duration-150 ${
+                isSelected ? "border-primary dark:border-primary" : ""
+              }`}
+            >
+              <div className="flex items-start gap-2">
+                {bulkMode && (
+                  <input
+                    type="checkbox"
+                    checked={isSelected}
+                    onChange={() => toggleSelectLog(log.id)}
+                    className="h-4 w-4 mt-1"
+                  />
+                )}
+                <div>
+                  <div className="flex items-center gap-2">
+                    <div className="text-sm font-medium text-foreground dark:text-foreground">
+                      {log.title}
+                    </div>
+                    <div className="text-xs text-muted-foreground dark:text-muted-foreground">
+                      • You
+                    </div>
+                  </div>
+                  <div className="text-xs text-muted-foreground dark:text-muted-foreground mt-1">
+                    {log.taskTitle
+                      ? `Linked task: ${log.taskTitle}`
+                      : "General"}
+                  </div>
+                  <p className="mt-2 text-sm text-foreground dark:text-foreground">
+                    {log.description}
+                  </p>
+                  <div className="mt-2 text-xs text-muted-foreground dark:text-muted-foreground">
+                    Hours: {log.hoursWorked} • Created:{" "}
+                    {formatDateConsistent(log.createdAt)} • Updated:{" "}
+                    {formatDateConsistent(log.updatedAt)}
+                  </div>
                 </div>
               </div>
 
-              {log.taskTitle ? (
-                <div className="text-xs text-muted-foreground dark:text-muted-foreground mt-1">
-                  Linked task: {log.taskTitle}
-                </div>
-              ) : (
-                <div className="text-xs text-muted-foreground dark:text-muted-foreground mt-1">
-                  General
-                </div>
-              )}
-
-              <p className="mt-2 text-sm text-foreground dark:text-foreground">
-                {log.description}
-              </p>
-
-              <div className="mt-2 text-xs text-muted-foreground dark:text-muted-foreground">
-                Hours: {log.hoursWorked} • Created:{" "}
-                {formatDateConsistent(log.createdAt)} • Updated:{" "}
-                {formatDateConsistent(log.updatedAt)}
-              </div>
+              {!bulkMode &&
+                toStartOfDay(new Date(log.date)).getTime() <=
+                  todayStart.getTime() && (
+                  <div className="flex items-start gap-2">
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => editLog(log)}
+                      disabled={saving}
+                      className="transition-colors duration-200 bg-gray-200 text-gray-900 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
+                    >
+                      Edit
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      onClick={() => handleDelete(log.id)}
+                      disabled={saving}
+                      className="transition-colors duration-200 bg-red-600 text-white hover:bg-red-700 dark:bg-red-500 dark:hover:bg-red-600"
+                    >
+                      Delete
+                    </Button>
+                  </div>
+                )}
             </div>
-
-            <div className="flex items-start gap-2">
-              {toStartOfDay(new Date(log.date)).getTime() <=
-                todayStart.getTime() && (
-                <>
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    onClick={() => editLog(log)}
-                    disabled={saving}
-                    className="transition-colors duration-200 bg-gray-200 text-gray-900 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
-                  >
-                    Edit
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="destructive"
-                    onClick={() => handleDelete(log.id)}
-                    disabled={saving}
-                    className="transition-colors duration-200 bg-red-600 text-white hover:bg-red-700 dark:bg-red-500 dark:hover:bg-red-600"
-                  >
-                    Delete
-                  </Button>
-                </>
-              )}
-            </div>
-          </div>
-        ))}
+          );
+        })}
 
         {/* Pagination */}
         {totalPages > 1 && (
@@ -305,14 +375,13 @@ export default function ProgressLog({
             >
               &lt;
             </Button>
-
             {getVisiblePages().map((p, idx) =>
-              p === "…" ? (
+              p === "..." ? (
                 <span
                   key={idx}
                   className="px-2 text-foreground dark:text-foreground"
                 >
-                  …
+                  ...
                 </span>
               ) : (
                 <Button
@@ -325,7 +394,6 @@ export default function ProgressLog({
                 </Button>
               )
             )}
-
             <Button
               size="sm"
               variant="outline"
