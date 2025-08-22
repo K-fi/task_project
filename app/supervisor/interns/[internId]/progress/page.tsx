@@ -40,7 +40,7 @@ export default async function Page({
     }),
     prisma.progressLog.findMany({
       where: { userId: resolvedParams.internId },
-        orderBy: { createdAt: "desc" }, //  sort by latest created date
+      orderBy: { createdAt: "desc" }, //  sort by latest created date
       select: {
         id: true,
         title: true,
@@ -74,7 +74,8 @@ export default async function Page({
     description: log.description,
     hoursWorked: log.hoursWorked,
     date: new Date(log.date),
-    taskTitle: log.taskTitle ?? "General", // ✅ no lookup, just use stored taskTitle
+    taskTitle: log.taskTitle ?? "General",
+    createdAt: log.createdAt, //
   }));
 
   return (

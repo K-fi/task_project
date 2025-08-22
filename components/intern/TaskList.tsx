@@ -40,14 +40,29 @@ export default function TaskList({
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [searchQuery, setSearchQuery] = useState<string>("");
 
-  // Collect all task due dates for calendar dots
+  // Collect task dates based on current status filter
   const allTaskDates = useMemo(() => {
+    let filteredForCalendar = allTasks;
+
+    // Apply status filter
+    if (statusFilter === "TODO_OVERDUE") {
+      filteredForCalendar = allTasks.filter((t) =>
+        [TaskStatus.TODO, TaskStatus.OVERDUE].includes(t.status)
+      );
+    } else if (statusFilter === "COMPLETED_LATE") {
+      filteredForCalendar = allTasks.filter((t) =>
+        [TaskStatus.COMPLETED, TaskStatus.LATE].includes(t.status)
+      );
+    } else if (statusFilter !== "ALL") {
+      filteredForCalendar = allTasks.filter((t) => t.status === statusFilter);
+    }
+
     return new Set(
-      allTasks
+      filteredForCalendar
         .filter((t) => t.dueDate)
         .map((t) => new Date(t.dueDate).toDateString())
     );
-  }, [allTasks]);
+  }, [allTasks, statusFilter]);
 
   const { filteredTasks, totalPages, paginatedTasks } = useMemo(() => {
     let filtered = allTasks;
@@ -195,7 +210,7 @@ export default function TaskList({
                 selected={selectedDate}
                 onSelect={setSelectedDate}
                 modifiers={{
-                  hasTask: (date) => allTaskDates.has(date.toDateString()), // use all tasks
+                  hasTask: (date) => allTaskDates.has(date.toDateString()),
                   today: (date) =>
                     date.toDateString() === new Date().toDateString(),
                 }}

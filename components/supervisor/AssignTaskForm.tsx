@@ -87,6 +87,7 @@ export default function AssignTaskForm({ internId }: { internId: string }) {
             id="description"
             rows={3}
             maxLength={500}
+            required
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             aria-describedby="description-help"
@@ -157,15 +158,15 @@ export default function AssignTaskForm({ internId }: { internId: string }) {
           type="submit"
           disabled={isPending}
           className="
-    w-full 
-    bg-gray-100 dark:bg-gray-700 
-    text-gray-900 dark:text-gray-100 
-    border border-gray-300 dark:border-gray-600
-    hover:bg-gray-200 dark:hover:bg-gray-600 
-    focus:outline-none 
-    focus:ring-2 focus:ring-gray-400 dark:focus:ring-gray-500 
-    transition-colors
-  "
+            w-full 
+            bg-gray-100 dark:bg-gray-700 
+            text-gray-900 dark:text-gray-100 
+            border border-gray-300 dark:border-gray-600
+            hover:bg-gray-200 dark:hover:bg-gray-600 
+            focus:outline-none 
+            focus:ring-2 focus:ring-gray-400 dark:focus:ring-gray-500 
+            transition-colors
+          "
         >
           {isPending ? "Assigning..." : "Assign Task"}
         </Button>

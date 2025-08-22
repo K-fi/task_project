@@ -2,9 +2,18 @@
 
 import { useState, useMemo, useEffect } from "react";
 import { TaskStatus } from "@/lib/generated/prisma";
-import StatusFilter from "./StatusFilter";
 import TaskCard from "@/components/TaskCard";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
+import { DayPicker } from "react-day-picker";
+import "react-day-picker/dist/style.css";
+import {
+  Popover,
+  PopoverTrigger,
+  PopoverContent,
+} from "@/components/ui/popover";
+import { Button } from "@/components/ui/button";
+import { Calendar } from "lucide-react";
+import { Input } from "@/components/ui/input";
 
 const TASKS_PER_PAGE = 6;
 const MAX_VISIBLE_PAGES = 5;
@@ -15,7 +24,7 @@ export default function TasksList({
   initialPage,
 }: {
   allTasks?: any[];
-  initialStatus?: TaskStatus;
+  initialStatus?: TaskStatus | "all";
   initialPage?: number;
 }) {
   const router = useRouter();
@@ -26,23 +35,57 @@ export default function TasksList({
     initialStatus || "all"
   );
   const [currentPage, setCurrentPage] = useState(initialPage || 1);
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
+  const [searchQuery, setSearchQuery] = useState("");
   const [isUpdatingURL, setIsUpdatingURL] = useState(false);
+
+  // Collect task dates based on current status filter
+  const allTaskDates = useMemo(() => {
+    let filteredTasksForCalendar = allTasks;
+
+    if (statusFilter !== "all") {
+      filteredTasksForCalendar = allTasks.filter(
+        (t) => t.status === statusFilter
+      );
+    }
+
+    return new Set(
+      filteredTasksForCalendar
+        .filter((t) => t.dueDate)
+        .map((t) => new Date(t.dueDate).toDateString())
+    );
+  }, [allTasks, statusFilter]);
 
   // Filter + paginate tasks
   const { filteredTasks, totalPages, paginatedTasks } = useMemo(() => {
-    const tasksToFilter = Array.isArray(allTasks) ? allTasks : [];
+    let tasksToFilter = Array.isArray(allTasks) ? allTasks : [];
 
-    // Filter tasks based on status
-    const filtered =
-      statusFilter === "all"
-        ? tasksToFilter
-        : tasksToFilter.filter((task) => task?.status === statusFilter);
+    // Status filter
+    if (statusFilter !== "all") {
+      tasksToFilter = tasksToFilter.filter((t) => t.status === statusFilter);
+    }
 
-    // Sort by updatedAt descending (latest first)
-    const sorted = filtered.slice().sort((a, b) => {
+    // Date filter
+    if (selectedDate) {
+      tasksToFilter = tasksToFilter.filter(
+        (t) =>
+          new Date(t.dueDate).toDateString() === selectedDate.toDateString()
+      );
+    }
+
+    // Search by title
+    if (searchQuery.trim()) {
+      const q = searchQuery.trim().toLowerCase();
+      tasksToFilter = tasksToFilter.filter((t) =>
+        t.title.toLowerCase().includes(q)
+      );
+    }
+
+    // Sort by updatedAt descending
+    const sorted = tasksToFilter.slice().sort((a, b) => {
       const dateA = new Date(a.updatedAt).getTime();
       const dateB = new Date(b.updatedAt).getTime();
-      return dateB - dateA; // descending
+      return dateB - dateA;
     });
 
     // Paginate
@@ -55,7 +98,7 @@ export default function TasksList({
       totalPages: total,
       paginatedTasks: paginated,
     };
-  }, [allTasks, statusFilter, currentPage]);
+  }, [allTasks, statusFilter, currentPage, selectedDate, searchQuery]);
 
   // Update URL on filter/page change
   useEffect(() => {
@@ -79,28 +122,22 @@ export default function TasksList({
   const handleStatusChange = (value: TaskStatus | "all") => {
     setStatusFilter(value);
     setCurrentPage(1);
+    setSelectedDate(undefined); // reset date filter on status change
   };
 
-  const handlePageChange = (page: number) => {
-    setCurrentPage(page);
-  };
+  const handlePageChange = (page: number) => setCurrentPage(page);
 
   // Compute visible pages with ellipses
   const getVisiblePages = (): (number | string)[] => {
-    if (totalPages <= MAX_VISIBLE_PAGES) {
+    if (totalPages <= MAX_VISIBLE_PAGES)
       return Array.from({ length: totalPages }, (_, i) => i + 1);
-    }
 
     let start = Math.max(2, currentPage - 1);
     let end = Math.min(totalPages - 1, currentPage + 1);
 
-    if (currentPage <= 3) {
-      start = 2;
-      end = 4;
-    } else if (currentPage >= totalPages - 2) {
-      start = totalPages - 3;
-      end = totalPages - 1;
-    }
+    if (currentPage <= 3) (start = 2), (end = 4);
+    else if (currentPage >= totalPages - 2)
+      (start = totalPages - 3), (end = totalPages - 1);
 
     const pages: (number | string)[] = [1];
     if (start > 2) pages.push("…");
@@ -113,14 +150,79 @@ export default function TasksList({
   const visiblePages = getVisiblePages();
 
   return (
-    <>
-      {/* Status Filters */}
-      <div className="flex justify-between items-center mb-4">
-        <StatusFilter
-          currentStatus={statusFilter}
-          onValueChange={handleStatusChange}
-          disabled={isUpdatingURL}
+    <div className="space-y-4">
+      {/* Search bar */}
+      <div className="flex flex-col">
+        <Input
+          placeholder="Search by title..."
+          value={searchQuery}
+          onChange={(e) => {
+            setSearchQuery(e.target.value);
+            setCurrentPage(1);
+          }}
         />
+        <p className="text-xs text-muted-foreground mt-1">
+          Type any keyword to filter tasks by title.
+        </p>
+      </div>
+
+      {/* Filters + Calendar */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="flex gap-2 flex-wrap items-center">
+          {/* Status buttons */}
+          {["all", ...Object.values(TaskStatus)].map((status) => (
+            <Button
+              key={status}
+              size="sm"
+              variant={statusFilter === status ? "default" : "outline"}
+              onClick={() => handleStatusChange(status as TaskStatus | "all")}
+              disabled={isUpdatingURL}
+            >
+              {status.toUpperCase()}
+            </Button>
+          ))}
+
+          {/* Calendar Popover */}
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                size="sm"
+                variant="outline"
+                className="flex items-center gap-1"
+              >
+                <Calendar className="w-4 h-4" />
+                {selectedDate ? selectedDate.toDateString() : "Due Date"}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-2">
+              <DayPicker
+                mode="single"
+                selected={selectedDate}
+                onSelect={setSelectedDate}
+                modifiers={{
+                  hasTask: (date) => allTaskDates.has(date.toDateString()),
+                  today: (date) =>
+                    date.toDateString() === new Date().toDateString(),
+                }}
+                modifiersClassNames={{
+                  hasTask:
+                    "relative after:absolute after:bottom-1 after:left-1/2 after:-translate-x-1/2 after:w-1 after:h-1 after:rounded-full after:bg-primary",
+                  today: "border border-primary rounded-full",
+                }}
+              />
+              {selectedDate && (
+                <Button
+                  variant="link"
+                  size="sm"
+                  className="mt-2 w-full"
+                  onClick={() => setSelectedDate(undefined)}
+                >
+                  Clear date
+                </Button>
+              )}
+            </PopoverContent>
+          </Popover>
+        </div>
       </div>
 
       {/* Empty state */}
@@ -135,22 +237,17 @@ export default function TasksList({
           {/* Task Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {paginatedTasks.map((task) => (
-              <TaskCard key={task?.id} task={task} viewerRole="SUPERVISOR" />
+              <TaskCard key={task.id} task={task} viewerRole="SUPERVISOR" />
             ))}
           </div>
 
           {/* Pagination */}
           {totalPages > 1 && (
             <div className="flex justify-center gap-2 mt-6">
-              {/* Previous */}
               <button
                 onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
                 disabled={currentPage === 1 || isUpdatingURL}
-                className={`px-3 py-1 rounded border dark:border-border ${
-                  currentPage === 1
-                    ? "opacity-50 cursor-not-allowed"
-                    : "bg-background dark:bg-background"
-                }`}
+                className="px-3 py-1 rounded border dark:border-border bg-background dark:bg-background disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 &lt;
               </button>
@@ -165,7 +262,7 @@ export default function TasksList({
                   </span>
                 ) : (
                   <button
-                    key={`page-${p}-${idx}`}
+                    key={`page-${p}`}
                     onClick={() => handlePageChange(p)}
                     disabled={isUpdatingURL}
                     className={`px-3 py-1 rounded border dark:border-border ${
@@ -179,17 +276,12 @@ export default function TasksList({
                 )
               )}
 
-              {/* Next */}
               <button
                 onClick={() =>
                   handlePageChange(Math.min(totalPages, currentPage + 1))
                 }
                 disabled={currentPage === totalPages || isUpdatingURL}
-                className={`px-3 py-1 rounded border dark:border-border ${
-                  currentPage === totalPages
-                    ? "opacity-50 cursor-not-allowed"
-                    : "bg-background dark:bg-background"
-                }`}
+                className="px-3 py-1 rounded border dark:border-border bg-background dark:bg-background disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 &gt;
               </button>
@@ -197,6 +289,6 @@ export default function TasksList({
           )}
         </>
       )}
-    </>
+    </div>
   );
 }

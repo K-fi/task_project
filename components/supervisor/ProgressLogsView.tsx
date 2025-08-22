@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import {
   Table,
   TableBody,
@@ -11,13 +11,17 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { DownloadIcon, CalendarIcon, XIcon } from "lucide-react";
-import Calendar from "@/components/progress/Calendar";
+import { DownloadIcon, CalendarIcon } from "lucide-react";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { DayPicker } from "react-day-picker";
+import "react-day-picker/dist/style.css";
+
+const LOGS_PER_PAGE = 6;
+const MAX_VISIBLE_PAGES = 5;
 
 export default function ProgressLogsView({
   logs,
@@ -29,48 +33,90 @@ export default function ProgressLogsView({
     description: string;
     hoursWorked: number;
     date: Date;
-    taskTitle?: string | null; // ✅ use taskTitle from schema
+    createdAt: Date;
+    taskTitle?: string | null;
   }[];
   internName: string;
 }) {
-  const [selectedDate, setSelectedDate] = useState<Date | null>(new Date());
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
 
-  const filteredLogs = selectedDate
-    ? logs.filter((log) => {
-        const logDate = new Date(log.date);
-        return (
-          logDate.getDate() === selectedDate.getDate() &&
-          logDate.getMonth() === selectedDate.getMonth() &&
-          logDate.getFullYear() === selectedDate.getFullYear()
+  // Dates with logs
+  const allLogDates = useMemo(
+    () => new Set(logs.map((log) => new Date(log.date).toDateString())),
+    [logs]
+  );
+
+  // Filter + sort logs
+  const { filteredLogs, totalPages, paginatedLogs } = useMemo(() => {
+    let filtered = logs;
+
+    if (selectedDate) {
+      filtered = filtered.filter(
+        (log) =>
+          new Date(log.date).toDateString() === selectedDate.toDateString()
+      );
+      // Sort by createdAt descending when date is filtered
+      filtered = filtered
+        .slice()
+        .sort(
+          (a, b) =>
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
         );
-      })
-    : logs;
+    } else {
+      // Sort by log date descending when showing all logs
+      filtered = filtered
+        .slice()
+        .sort(
+          (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+        );
+    }
 
-  const clearDateFilter = () => setSelectedDate(null);
+    const total = Math.ceil(filtered.length / LOGS_PER_PAGE);
+    const start = (currentPage - 1) * LOGS_PER_PAGE;
+    const paginated = filtered.slice(start, start + LOGS_PER_PAGE);
 
-  // ----------------------------
-  // CSV Export Helper Functions
-  // ----------------------------
+    return {
+      filteredLogs: filtered,
+      totalPages: total,
+      paginatedLogs: paginated,
+    };
+  }, [logs, selectedDate, currentPage]);
+
+  // Pagination helpers
+  const getVisiblePages = (): (number | string)[] => {
+    if (totalPages <= MAX_VISIBLE_PAGES)
+      return Array.from({ length: totalPages }, (_, i) => i + 1);
+    let start = Math.max(2, currentPage - 1);
+    let end = Math.min(totalPages - 1, currentPage + 1);
+    if (currentPage <= 3) (start = 2), (end = 4);
+    else if (currentPage >= totalPages - 2)
+      (start = totalPages - 3), (end = totalPages - 1);
+
+    const pages: (number | string)[] = [1];
+    if (start > 2) pages.push("…");
+    for (let i = start; i <= end; i++) pages.push(i);
+    if (end < totalPages - 1) pages.push("…");
+    pages.push(totalPages);
+    return pages;
+  };
+
+  const visiblePages = getVisiblePages();
+
+  // CSV export
   const convertToCSV = (logsToExport: typeof filteredLogs) => {
     const headers = ["Date", "Task Title", "Log Title", "Description", "Hours"];
     const rows = logsToExport.map((log) => [
       new Date(log.date).toLocaleDateString("en-US"),
-      log.taskTitle ? log.taskTitle : "General", // ✅ use taskTitle directly
+      log.taskTitle ?? "General",
       log.title,
       log.description,
       log.hoursWorked.toString(),
     ]);
-
-    const csvContent = [headers, ...rows]
-      .map((row) =>
-        row
-          .map((field) => `"${field.replace(/"/g, '""')}"`) // escape quotes
-          .join(",")
-      )
+    return [headers, ...rows]
+      .map((row) => row.map((f) => `"${f.replace(/"/g, '""')}"`).join(","))
       .join("\n");
-
-    return csvContent;
   };
 
   const downloadCSV = (logsToExport: typeof filteredLogs, fileName: string) => {
@@ -83,6 +129,11 @@ export default function ProgressLogsView({
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+  };
+
+  const clearDateFilter = () => {
+    setSelectedDate(null);
+    setCurrentPage(1);
   };
 
   return (
@@ -98,21 +149,38 @@ export default function ProgressLogsView({
                   : "Filter by date"}
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-auto p-0">
-              <Calendar
-                selectedDate={selectedDate || new Date()}
+            <PopoverContent className="w-auto p-2">
+              <DayPicker
+                mode="single"
+                selected={selectedDate ?? undefined}
                 onSelect={(date) => {
-                  setSelectedDate(date);
+                  if (date) setSelectedDate(date);
                   setIsCalendarOpen(false);
+                  setCurrentPage(1);
+                }}
+                modifiers={{
+                  hasLog: (date) => allLogDates.has(date.toDateString()),
+                  today: (date) =>
+                    date.toDateString() === new Date().toDateString(),
+                }}
+                modifiersClassNames={{
+                  hasLog:
+                    "relative after:absolute after:bottom-1 after:left-1/2 after:-translate-x-1/2 after:w-1 after:h-1 after:rounded-full after:bg-primary",
+                  today: "border border-primary rounded-md",
                 }}
               />
+              {selectedDate && (
+                <Button
+                  variant="link"
+                  size="sm"
+                  className="mt-2 w-full"
+                  onClick={clearDateFilter}
+                >
+                  Clear date
+                </Button>
+              )}
             </PopoverContent>
           </Popover>
-          {selectedDate && (
-            <Button variant="ghost" size="sm" onClick={clearDateFilter}>
-              <XIcon className="h-4 w-4" />
-            </Button>
-          )}
         </div>
         <Button
           variant="outline"
@@ -125,41 +193,55 @@ export default function ProgressLogsView({
         </Button>
       </div>
 
-      <div className="overflow-x-auto rounded-md border">
-        <Table className="min-w-full">
+      <div className="overflow-x-auto rounded-md border-2 border-gray-300 dark:border-gray-600">
+        <Table className="min-w-full text-base border-collapse border border-gray-300 dark:border-gray-600">
           <TableHeader>
-            <TableRow>
-              <TableHead>Date</TableHead>
-              <TableHead>Task Title</TableHead>
-              <TableHead>Log Title</TableHead>
-              <TableHead>Description</TableHead>
-              <TableHead className="text-right">Hours</TableHead>
+            <TableRow className="h-14 border-b-2 border-gray-300 dark:border-gray-600">
+              <TableHead className="px-6 py-4 font-semibold">Date</TableHead>
+              <TableHead className="px-6 py-4 font-semibold">
+                Task Title
+              </TableHead>
+              <TableHead className="px-6 py-4 font-semibold">
+                Log Title
+              </TableHead>
+              <TableHead className="px-6 py-4 font-semibold">
+                Description
+              </TableHead>
+              <TableHead className="px-6 py-4 text-right font-semibold">
+                Hours
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredLogs.map((log) => (
-              <TableRow key={log.id}>
-                <TableCell>
+            {paginatedLogs.map((log) => (
+              <TableRow
+                key={log.id}
+                className="h-16 hover:bg-muted/30 dark:hover:bg-muted/20 border-b border-gray-300 dark:border-gray-600"
+              >
+                <TableCell className="px-6 py-4">
                   {new Date(log.date).toLocaleDateString("en-US", {
                     month: "short",
                     day: "numeric",
                     year: "numeric",
                   })}
                 </TableCell>
-                <TableCell>
-                  {log.taskTitle ? (
-                    <Badge variant="outline">{log.taskTitle}</Badge> // ✅ show taskTitle
-                  ) : (
-                    <Badge variant="secondary">General</Badge>
-                  )}
+                <TableCell className="px-6 py-4">
+                  <Badge
+                    variant={log.taskTitle ? "outline" : "secondary"}
+                    className="text-sm py-1 px-2"
+                  >
+                    {log.taskTitle ?? "General"}
+                  </Badge>
                 </TableCell>
-                <TableCell className="whitespace-normal break-words max-w-xs">
+                <TableCell className="px-6 py-4 whitespace-normal break-words max-w-xs">
                   {log.title}
                 </TableCell>
-                <TableCell className="whitespace-normal break-words max-w-sm">
+                <TableCell className="px-6 py-4 whitespace-normal break-words max-w-sm">
                   {log.description}
                 </TableCell>
-                <TableCell className="text-right">{log.hoursWorked}</TableCell>
+                <TableCell className="px-6 py-4 text-right">
+                  {log.hoursWorked}
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>
@@ -170,6 +252,50 @@ export default function ProgressLogsView({
             {selectedDate
               ? `No logs found for ${selectedDate.toLocaleDateString()}`
               : `${internName} hasn't logged any progress yet`}
+          </div>
+        )}
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="flex justify-center gap-2 mt-4">
+            <button
+              onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+              disabled={currentPage === 1}
+              className="px-3 py-1 rounded border dark:border-border bg-background dark:bg-background disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              &lt;
+            </button>
+            {visiblePages.map((p, idx) =>
+              typeof p === "string" ? (
+                <span
+                  key={`ellipsis-${idx}`}
+                  className="px-2 text-foreground dark:text-foreground"
+                >
+                  {p}
+                </span>
+              ) : (
+                <button
+                  key={`page-${p}`}
+                  onClick={() => setCurrentPage(p)}
+                  className={`px-3 py-1 rounded border dark:border-border ${
+                    p === currentPage
+                      ? "bg-primary text-primary-foreground dark:bg-primary dark:text-primary-foreground"
+                      : "bg-background text-foreground dark:bg-background dark:text-foreground hover:bg-muted/70 dark:hover:bg-muted/60"
+                  }`}
+                >
+                  {p}
+                </button>
+              )
+            )}
+            <button
+              onClick={() =>
+                setCurrentPage(Math.min(totalPages, currentPage + 1))
+              }
+              disabled={currentPage === totalPages}
+              className="px-3 py-1 rounded border dark:border-border bg-background dark:bg-background disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              &gt;
+            </button>
           </div>
         )}
       </div>

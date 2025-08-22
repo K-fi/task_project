@@ -72,19 +72,25 @@ export default function ProgressLog({
     return toStartOfDay(selected).getTime() > todayStart.getTime();
   }, [selectedDate, todayStart]);
 
-const logsForDate = useMemo(() => {
-  const target = toStartOfDay(new Date(selectedDate)).getTime();
-  return allLogs
-    .filter((log) => toStartOfDay(new Date(log.date)).getTime() === target)
-    .map((log) => ({
-      ...log,
-      date: new Date(log.date),
-      createdAt: new Date(log.createdAt),
-      updatedAt: new Date(log.updatedAt),
-    }))
-    .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime()); //  newest first
-}, [allLogs, selectedDate]);
+  // Collect all dates that have logs for showing dot
+  const logDatesSet = useMemo(() => {
+    return new Set(
+      allLogs.map((log) => toStartOfDay(new Date(log.date)).toDateString())
+    );
+  }, [allLogs]);
 
+  const logsForDate = useMemo(() => {
+    const target = toStartOfDay(new Date(selectedDate)).getTime();
+    return allLogs
+      .filter((log) => toStartOfDay(new Date(log.date)).getTime() === target)
+      .map((log) => ({
+        ...log,
+        date: new Date(log.date),
+        createdAt: new Date(log.createdAt),
+        updatedAt: new Date(log.updatedAt),
+      }))
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime()); // newest first
+  }, [allLogs, selectedDate]);
 
   const totalPages = Math.ceil(logsForDate.length / LOGS_PER_PAGE);
   const paginatedLogs = logsForDate.slice(
@@ -182,12 +188,22 @@ const logsForDate = useMemo(() => {
                 const picked = toStartOfDay(date);
                 if (picked.getTime() > todayStart.getTime()) return;
                 setSelectedDate(date.toISOString());
-                setIsCalendarOpen(false);
               }}
               disabled={{ after: new Date() }}
               className="text-foreground dark:text-foreground"
+              modifiers={{
+                hasLog: (date) => logDatesSet.has(date.toDateString()),
+                today: (date) =>
+                  date.toDateString() === new Date().toDateString(),
+              }}
+              // Inside DayPicker modifiersClassNames
+              modifiersClassNames={{
+                hasLog:
+                  "relative after:absolute after:bottom-1 after:left-1/2 after:-translate-x-1/2 after:w-1 after:h-1 after:rounded-full after:bg-primary dark:after:bg-primary/80",
+                today: "border border-primary rounded-full",
+              }}
             />
-            <div className="mt-3 flex justify-end">
+            <div className="mt-3 flex justify-end gap-2">
               <Button
                 variant="secondary"
                 onClick={() => setIsCalendarOpen(false)}
