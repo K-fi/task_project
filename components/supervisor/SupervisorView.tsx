@@ -129,27 +129,45 @@ export default function SupervisorView({
                 return (
                   <Card
                     key={intern.id}
-                    className="h-full border shadow-sm hover:shadow-md transition"
+                    className="h-full border border-gray-200 dark:border-gray-700 shadow-md hover:shadow-xl transition-all duration-200 rounded-xl bg-gray-50 dark:bg-gray-800"
                   >
-                    <CardHeader>
-                      <CardTitle className="text-lg font-semibold">
+                    <CardHeader className="pb-0">
+                      <CardTitle className="text-lg font-bold text-gray-800 dark:text-gray-100">
                         {intern.name}
                       </CardTitle>
                     </CardHeader>
-                    <CardContent className="space-y-4">
-                      <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">Assigned:</span>
-                        <span className="font-medium text-blue-600">
+                    <CardContent className="space-y-4 pt-2">
+                      <div className="flex justify-between items-center text-sm">
+                        <span className="text-gray-500 dark:text-gray-400">
+                          Assigned:
+                        </span>
+                        <span className="font-semibold text-blue-600 dark:text-blue-400">
                           {intern.assignedTasks.length}
                         </span>
                       </div>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">
+                      <div className="flex justify-between items-center text-sm">
+                        <span className="text-gray-500 dark:text-gray-400">
                           Completed:
                         </span>
-                        <span className="font-medium text-green-600">
+                        <span className="font-semibold text-green-600 dark:text-green-400">
                           {completedCount}
                         </span>
+                      </div>
+
+                      {/* Progress bar */}
+                      <div className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-full mt-2">
+                        <div
+                          className="h-2 bg-green-500 rounded-full transition-all duration-300"
+                          style={{
+                            width: `${
+                              intern.assignedTasks.length
+                                ? (completedCount /
+                                    intern.assignedTasks.length) *
+                                  100
+                                : 0
+                            }%`,
+                          }}
+                        ></div>
                       </div>
 
                       <Button asChild variant="outline" className="w-full">
