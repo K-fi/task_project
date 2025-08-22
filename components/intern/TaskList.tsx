@@ -4,6 +4,16 @@ import { useState, useMemo, useEffect } from "react";
 import { TaskStatus } from "@/lib/generated/prisma";
 import TaskCard from "../TaskCard";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
+import { DayPicker } from "react-day-picker";
+import "react-day-picker/dist/style.css";
+import {
+  Popover,
+  PopoverTrigger,
+  PopoverContent,
+} from "@/components/ui/popover";
+import { Button } from "@/components/ui/button";
+import { Calendar } from "lucide-react";
+import { Input } from "@/components/ui/input";
 
 type ExtraStatus = "ALL" | "TODO_OVERDUE" | "COMPLETED_LATE";
 
@@ -27,56 +37,71 @@ export default function TaskList({
   );
   const [currentPage, setCurrentPage] = useState(initialPage || 1);
   const [isUpdatingURL, setIsUpdatingURL] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
+  const [searchQuery, setSearchQuery] = useState<string>("");
 
-  const { filteredTasks, totalPages, paginatedTasks, completedCount } =
-    useMemo(() => {
-      let filtered = allTasks;
+  // Collect all task due dates for calendar dots
+  const allTaskDates = useMemo(() => {
+    return new Set(
+      allTasks
+        .filter((t) => t.dueDate)
+        .map((t) => new Date(t.dueDate).toDateString())
+    );
+  }, [allTasks]);
 
-      if (statusFilter === "ALL") {
-        // no filter
-      } else if (statusFilter === "TODO_OVERDUE") {
-        filtered = allTasks.filter((t) =>
-          [TaskStatus.TODO, TaskStatus.OVERDUE].includes(t.status)
+  const { filteredTasks, totalPages, paginatedTasks } = useMemo(() => {
+    let filtered = allTasks;
+
+    // Status filter
+    if (statusFilter === "TODO_OVERDUE") {
+      filtered = allTasks.filter((t) =>
+        [TaskStatus.TODO, TaskStatus.OVERDUE].includes(t.status)
+      );
+    } else if (statusFilter === "COMPLETED_LATE") {
+      filtered = allTasks
+        .filter((t) =>
+          [TaskStatus.COMPLETED, TaskStatus.LATE].includes(t.status)
+        )
+        .sort(
+          (a, b) =>
+            new Date(b.updatedAt || b.submittedAt).getTime() -
+            new Date(a.updatedAt || a.submittedAt).getTime()
         );
-      } else if (statusFilter === "COMPLETED_LATE") {
-        filtered = allTasks
-          .filter((t) =>
-            [TaskStatus.COMPLETED, TaskStatus.LATE].includes(t.status)
-          )
-          // sort descending by updatedAt/submittedAt
-          .sort(
-            (a, b) =>
-              new Date(b.updatedAt || b.submittedAt).getTime() -
-              new Date(a.updatedAt || a.submittedAt).getTime()
-          );
-      } else {
-        filtered = allTasks.filter((t) => t.status === statusFilter);
-      }
+    } else if (statusFilter !== "ALL") {
+      filtered = allTasks.filter((t) => t.status === statusFilter);
+    }
 
-      const total = Math.ceil(filtered.length / TASKS_PER_PAGE);
-      const start = (currentPage - 1) * TASKS_PER_PAGE;
-      const paginated = filtered.slice(start, start + TASKS_PER_PAGE);
+    // Date filter
+    if (selectedDate) {
+      filtered = filtered.filter(
+        (t) =>
+          new Date(t.dueDate).toDateString() === selectedDate.toDateString()
+      );
+    }
 
-      const completed = filtered.filter((t) =>
-        [TaskStatus.COMPLETED, TaskStatus.LATE].includes(t.status)
-      ).length;
+    // Search by title
+    if (searchQuery.trim()) {
+      const q = searchQuery.trim().toLowerCase();
+      filtered = filtered.filter((t) => t.title.toLowerCase().includes(q));
+    }
 
-      return {
-        filteredTasks: filtered,
-        totalPages: total,
-        paginatedTasks: paginated,
-        completedCount: completed,
-      };
-    }, [allTasks, statusFilter, currentPage]);
+    const total = Math.ceil(filtered.length / TASKS_PER_PAGE);
+    const start = (currentPage - 1) * TASKS_PER_PAGE;
+    const paginated = filtered.slice(start, start + TASKS_PER_PAGE);
 
-  // Auto reset page if empty
+    return {
+      filteredTasks: filtered,
+      totalPages: total,
+      paginatedTasks: paginated,
+    };
+  }, [allTasks, statusFilter, currentPage, selectedDate, searchQuery]);
+
   useEffect(() => {
     if (paginatedTasks.length === 0 && currentPage > 1) {
       setCurrentPage((prev) => prev - 1);
     }
   }, [paginatedTasks, currentPage]);
 
-  // Update URL
   useEffect(() => {
     const timer = setTimeout(() => {
       const params = new URLSearchParams(searchParams.toString());
@@ -98,32 +123,8 @@ export default function TaskList({
   const handleStatusChange = (value: ExtraStatus | TaskStatus) => {
     setStatusFilter(value);
     setCurrentPage(1);
+    setSelectedDate(undefined); // reset date when status changes
   };
-
-  const handlePageChange = (page: number) => setCurrentPage(page);
-
-  const getVisiblePages = () => {
-    const maxVisible = 5;
-    if (totalPages <= maxVisible)
-      return Array.from({ length: totalPages }, (_, i) => i + 1);
-
-    let start = Math.max(2, currentPage - 1);
-    let end = Math.min(totalPages - 1, currentPage + 1);
-
-    if (currentPage <= 3) (start = 2), (end = 4);
-    else if (currentPage >= totalPages - 2)
-      (start = totalPages - 3), (end = totalPages - 1);
-
-    return [
-      1,
-      ...(start > 2 ? ["left-ellipsis"] : []),
-      ...Array.from({ length: end - start + 1 }, (_, i) => start + i),
-      ...(end < totalPages - 1 ? ["right-ellipsis"] : []),
-      totalPages,
-    ];
-  };
-
-  const visiblePages = getVisiblePages();
 
   const filters = [
     { value: "TODO_OVERDUE", label: "TODO" },
@@ -138,12 +139,27 @@ export default function TaskList({
 
   return (
     <div className="space-y-4">
-      {/* Filters */}
-      <div className="flex items-center justify-between">
+      {/* Search bar */}
+      <div className="flex flex-col">
+        <Input
+          placeholder="Search by title..."
+          value={searchQuery}
+          onChange={(e) => {
+            setSearchQuery(e.target.value);
+            setCurrentPage(1);
+          }}
+        />
+        <p className="text-xs text-muted-foreground mt-1">
+          Type any keyword to filter tasks by title.
+        </p>
+      </div>
+
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <h2 className="text-lg font-semibold text-foreground dark:text-foreground">
           Your Tasks
         </h2>
-        <div className="flex gap-2 flex-wrap">
+
+        <div className="flex gap-2 flex-wrap items-center">
           {filters.map(({ value, label }) => (
             <button
               key={value}
@@ -160,118 +176,61 @@ export default function TaskList({
               {label}
             </button>
           ))}
+
+          {/* Calendar Popover */}
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex items-center gap-1"
+              >
+                <Calendar className="w-4 h-4" />{" "}
+                {selectedDate ? selectedDate.toDateString() : "Due Date"}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-2">
+              <DayPicker
+                mode="single"
+                selected={selectedDate}
+                onSelect={setSelectedDate}
+                modifiers={{
+                  hasTask: (date) => allTaskDates.has(date.toDateString()), // use all tasks
+                  today: (date) =>
+                    date.toDateString() === new Date().toDateString(),
+                }}
+                modifiersClassNames={{
+                  hasTask:
+                    "relative after:absolute after:bottom-1 after:left-1/2 after:-translate-x-1/2 after:w-1 after:h-1 after:rounded-full after:bg-primary",
+                  today: "border border-primary rounded-full",
+                }}
+              />
+              {selectedDate && (
+                <Button
+                  variant="link"
+                  size="sm"
+                  className="mt-2 w-full"
+                  onClick={() => setSelectedDate(undefined)}
+                >
+                  Clear date
+                </Button>
+              )}
+            </PopoverContent>
+          </Popover>
         </div>
       </div>
 
-      {/* Empty state */}
+      {/* Task list */}
       {filteredTasks.length === 0 ? (
         <p className="text-sm text-muted-foreground dark:text-muted-foreground">
           You have no tasks assigned.
         </p>
       ) : (
-        <>
-          <p className="text-muted-foreground dark:text-muted-foreground text-sm">
-            {statusFilter === "COMPLETED_LATE" ? (
-              <>
-                You have {filteredTasks.length} completed task
-                {filteredTasks.length !== 1 ? "s" : ""} ✅
-              </>
-            ) : statusFilter === "TODO_OVERDUE" ? (
-              (() => {
-                const todoCount = filteredTasks.filter(
-                  (t) => t.status === TaskStatus.TODO
-                ).length;
-                const overdueCount = filteredTasks.filter(
-                  (t) => t.status === TaskStatus.OVERDUE
-                ).length;
-                return (
-                  <>
-                    You have {todoCount} todo task{todoCount !== 1 ? "s" : ""}
-                    {overdueCount > 0 && (
-                      <>
-                        {" "}
-                        and{" "}
-                        <span className="text-red-500 font-medium dark:text-red-400">
-                          {overdueCount} overdue task
-                          {overdueCount !== 1 ? "s" : ""} ⚠️
-                        </span>
-                      </>
-                    )}
-                  </>
-                );
-              })()
-            ) : (
-              <>
-                You have {filteredTasks.length} task
-                {filteredTasks.length !== 1 ? "s" : ""}.{" "}
-                {completedCount > 0 && `${completedCount} completed ✅`}
-              </>
-            )}
-          </p>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {paginatedTasks.map((task) => (
-              <TaskCard key={task.id} task={task} viewerRole="INTERN" />
-            ))}
-          </div>
-
-          {/* Pagination */}
-          {totalPages > 1 && (
-            <div className="flex justify-center gap-2 mt-6 flex-wrap">
-              {/* Prev */}
-              <button
-                onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
-                disabled={currentPage === 1 || isUpdatingURL}
-                className={`px-3 py-1 rounded border dark:border-border ${
-                  currentPage === 1
-                    ? "opacity-50 cursor-not-allowed"
-                    : "bg-background dark:bg-background"
-                }`}
-              >
-                &lt;
-              </button>
-
-              {visiblePages.map((p, idx) =>
-                p === "left-ellipsis" || p === "right-ellipsis" ? (
-                  <span
-                    key={`ellipsis-${p}-${idx}`}
-                    className="px-2 text-foreground dark:text-foreground"
-                  >
-                    …
-                  </span>
-                ) : (
-                  <button
-                    key={`page-${p}-${idx}`}
-                    onClick={() => handlePageChange(p as number)}
-                    disabled={isUpdatingURL}
-                    className={`px-3 py-1 rounded border dark:border-border ${
-                      p === currentPage
-                        ? "bg-primary text-primary-foreground dark:bg-primary dark:text-primary-foreground"
-                        : "bg-background text-foreground dark:bg-background dark:text-foreground hover:bg-muted/70 dark:hover:bg-muted/60"
-                    }`}
-                  >
-                    {p}
-                  </button>
-                )
-              )}
-
-              {/* Next */}
-              <button
-                onClick={() =>
-                  handlePageChange(Math.min(totalPages, currentPage + 1))
-                }
-                disabled={currentPage === totalPages || isUpdatingURL}
-                className={`px-3 py-1 rounded border dark:border-border ${
-                  currentPage === totalPages
-                    ? "opacity-50 cursor-not-allowed"
-                    : "bg-background dark:bg-background"
-                }`}
-              >
-                &gt;
-              </button>
-            </div>
-          )}
-        </>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {paginatedTasks.map((task) => (
+            <TaskCard key={task.id} task={task} viewerRole="INTERN" />
+          ))}
+        </div>
       )}
     </div>
   );

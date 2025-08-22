@@ -8,7 +8,7 @@ type Role = "INTERN" | "SUPERVISOR";
 export const requireUserWithRole = async (
   expectedRole: Role,
   {
-    redirectOnMissingUser = "/",
+    redirectOnMissingUser = "/onboarding",
     redirectIfNotOnboarded = "/onboarding",
     redirectIfWrongRole = "/dashboard",
   } = {}

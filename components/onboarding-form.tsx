@@ -78,8 +78,8 @@ export const OnboardingForm = ({ name, email, image }: Props) => {
     <div className="min-h-screen flex items-center justify-center bg-background">
       <Card className="w-full max-w-md">
         <CardHeader>
-          <CardTitle>Welcome to DailyTM</CardTitle>
-          <CardDescription>Amazing task manager app.</CardDescription>
+          <CardTitle>Welcome to TMProject</CardTitle>
+          <CardDescription>Select your name and role.</CardDescription>
         </CardHeader>
         <CardContent>
           <Form {...form}>

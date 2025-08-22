@@ -1,4 +1,3 @@
-// app/layout.tsx
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
@@ -8,7 +7,7 @@ import { prisma } from "@/lib/db";
 import { Navbar } from "@/components/Navbar";
 import { AccessLevel } from "@/lib/generated/prisma";
 import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
-import { ThemeProvider } from "@/components/theme-provider"; // ✅ import
+import { ThemeProvider } from "@/components/theme-provider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -30,15 +29,17 @@ export default async function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
-  // ✅ Get fresh session data every time layout loads
-  const { getUser } = getKindeServerSession();
-  const user = await getUser();
+  // Get fresh session data every time layout loads
+  const { getUser, isAuthenticated } = getKindeServerSession();
+  const loggedIn = await isAuthenticated();
+  const sessionUser = await getUser();
 
+  // Default: userData is null if DB user not found
   let userData: { name: string; role: AccessLevel } | null = null;
 
-  if (user) {
+  if (loggedIn && sessionUser?.email) {
     const dbUser = await prisma.user.findUnique({
-      where: { email: user.email as string },
+      where: { email: sessionUser.email },
       select: { name: true, role: true },
     });
 
@@ -62,11 +63,12 @@ export default async function RootLayout({
             enableSystem
             disableTransitionOnChange
           >
-            {/* Navbar will always have the latest session */}
+            {/* Navbar shows session info; role links only if DB user exists */}
             <Navbar
               name={userData?.name}
               role={userData?.role}
-              isAuthenticated={!!user}
+              isAuthenticated={!!loggedIn} // coerce null → false
+              hasDbUser={!!userData}
             />
 
             <main className="max-w-7xl mx-auto px-4 py-20 min-h-screen">

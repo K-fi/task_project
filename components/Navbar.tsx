@@ -12,12 +12,14 @@ interface NavbarProps {
   name?: string;
   role?: AccessLevel;
   isAuthenticated?: boolean;
+  hasDbUser?: boolean; // new prop: only show role-specific links if true
 }
 
 export const Navbar = ({
   name = "",
   role = "INTERN",
   isAuthenticated = false,
+  hasDbUser = false,
 }: NavbarProps) => {
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background">
@@ -31,9 +33,9 @@ export const Navbar = ({
             TMProject
           </Link>
 
-          {isAuthenticated ? (
-            <>
-              {role === "SUPERVISOR" ? (
+          {
+            isAuthenticated && hasDbUser ? (
+              role === "SUPERVISOR" ? (
                 <Link
                   href="/manage-interns"
                   className="text-sm text-muted-foreground hover:text-primary"
@@ -47,35 +49,37 @@ export const Navbar = ({
                 >
                   Log Progress
                 </Link>
-              )}
-            </>
-          ) : (
-            <>
-              <Link
-                href="/about"
-                className="text-sm text-muted-foreground hover:text-primary"
-              >
-                About
-              </Link>
-              <Link
-                href="/features"
-                className="text-sm text-muted-foreground hover:text-primary"
-              >
-                Features
-              </Link>
-            </>
-          )}
+              )
+            ) : !isAuthenticated ? (
+              <>
+                <Link
+                  href="/about"
+                  className="text-sm text-muted-foreground hover:text-primary"
+                >
+                  About
+                </Link>
+                <Link
+                  href="/features"
+                  className="text-sm text-muted-foreground hover:text-primary"
+                >
+                  Features
+                </Link>
+              </>
+            ) : null /* logged in but no DB user → hide role links */
+          }
         </div>
 
         {/* Right: Auth + Theme Toggle */}
         <div className="flex items-center gap-4">
-          <ModeToggle /> {/* Dark mode toggle here */}
+          <ModeToggle />
           {isAuthenticated ? (
             <>
-              <span className="text-sm text-muted-foreground hidden sm:inline">
-                {role.charAt(0).toUpperCase() + role.slice(1).toLowerCase()}
-                {name && ` ${name}`}
-              </span>
+              {hasDbUser && (
+                <span className="text-sm text-muted-foreground hidden sm:inline">
+                  {role.charAt(0).toUpperCase() + role.slice(1).toLowerCase()}
+                  {name && ` ${name}`}
+                </span>
+              )}
               <Button asChild variant="outline">
                 <LogoutLink>Log out</LogoutLink>
               </Button>

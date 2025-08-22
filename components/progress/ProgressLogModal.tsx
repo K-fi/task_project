@@ -83,7 +83,7 @@ export default function ProgressLogModal({
 
       setTitle(initialData.title);
       setDescription(initialData.description);
-      
+
       // If there's a taskTitle but no taskId, show custom task input
       if (initialData.taskTitle && !initialData.taskId) {
         setUseCustomTask(true);
@@ -281,7 +281,7 @@ export default function ProgressLogModal({
           {/* Task selection */}
           <div className="space-y-2">
             <Label className="dark:text-gray-200">Related Task</Label>
-            
+
             {/* Toggle between task selection and custom task input */}
             <div className="flex gap-2 mb-2">
               <Button
@@ -338,12 +338,14 @@ export default function ProgressLogModal({
                 className="bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600"
               />
             )}
-            
-            <p id="task-help" className="text-sm text-gray-600 dark:text-gray-300">
-              {!useCustomTask 
-                ? "Link to a specific task if applicable" 
-                : "Enter the name of the task you worked on"
-              }
+
+            <p
+              id="task-help"
+              className="text-sm text-gray-600 dark:text-gray-300"
+            >
+              {!useCustomTask
+                ? "Link to a specific task if applicable"
+                : "Enter the name of the task you worked on"}
             </p>
           </div>
         </div>
@@ -360,7 +362,7 @@ export default function ProgressLogModal({
           <Button
             onClick={handleSave}
             disabled={!canSave || saving}
-            className="bg-blue-600 dark:bg-blue-500 text-white hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors"
+            className="bg-gray-900 dark:bg-gray-100 text-white dark:text-black hover:bg-gray-700 dark:hover:bg-gray-300 transition-colors"
           >
             {saving ? "Saving..." : "Save"}
           </Button>

@@ -57,16 +57,31 @@
 // app/page.tsx
 import { redirect } from "next/navigation";
 import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
+import { prisma } from "@/lib/db";
 
 export default async function Home() {
-  const { isAuthenticated } = getKindeServerSession();
-  const isLoggedIn = await isAuthenticated();
+  const { getUser, isAuthenticated } = getKindeServerSession();
+  const loggedIn = await isAuthenticated();
 
-  // If logged in → dashboard
-  if (isLoggedIn) {
-    redirect("/dashboard");
+  if (!loggedIn) {
+    redirect("/api/auth/login");
   }
 
-  // If not logged in → go to login page
-  redirect("/api/auth/login");
+  // Get the user session
+  const user = await getUser();
+  if (!user?.email) redirect("/api/auth/login");
+
+  // Check if user exists in DB
+  const dbUser = await prisma.user.findUnique({
+    where: { email: user.email },
+    select: { onboardingCompleted: true },
+  });
+
+  if (!dbUser) {
+    // New user → go to onboarding
+    redirect("/onboarding");
+  }
+
+  // Existing user → dashboard
+  redirect("/dashboard");
 }
