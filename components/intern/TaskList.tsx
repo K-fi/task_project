@@ -40,11 +40,10 @@ export default function TaskList({
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [searchQuery, setSearchQuery] = useState<string>("");
 
-  // Collect task dates based on current status filter
+  // Dates that have tasks, based on current status filter (for calendar dots)
   const allTaskDates = useMemo(() => {
     let filteredForCalendar = allTasks;
 
-    // Apply status filter
     if (statusFilter === "TODO_OVERDUE") {
       filteredForCalendar = allTasks.filter((t) =>
         [TaskStatus.TODO, TaskStatus.OVERDUE].includes(t.status)
@@ -59,64 +58,95 @@ export default function TaskList({
 
     return new Set(
       filteredForCalendar
-        .filter((t) => t.dueDate)
+        .filter((t) => !!t?.dueDate)
         .map((t) => new Date(t.dueDate).toDateString())
     );
   }, [allTasks, statusFilter]);
 
-  const { filteredTasks, totalPages, paginatedTasks } = useMemo(() => {
-    let filtered = allTasks;
+  const { filteredTasks, totalPages, paginatedTasks, completedCount } =
+    useMemo(() => {
+      let filtered = allTasks;
 
-    // Status filter
-    if (statusFilter === "TODO_OVERDUE") {
-      filtered = allTasks.filter((t) =>
-        [TaskStatus.TODO, TaskStatus.OVERDUE].includes(t.status)
-      );
-    } else if (statusFilter === "COMPLETED_LATE") {
-      filtered = allTasks
-        .filter((t) =>
-          [TaskStatus.COMPLETED, TaskStatus.LATE].includes(t.status)
-        )
-        .sort(
-          (a, b) =>
-            new Date(b.updatedAt || b.submittedAt).getTime() -
-            new Date(a.updatedAt || a.submittedAt).getTime()
+      // Status filter
+      if (statusFilter === "TODO_OVERDUE") {
+        filtered = allTasks.filter((t) =>
+          [TaskStatus.TODO, TaskStatus.OVERDUE].includes(t.status)
         );
-    } else if (statusFilter !== "ALL") {
-      filtered = allTasks.filter((t) => t.status === statusFilter);
-    }
+      } else if (statusFilter === "COMPLETED_LATE") {
+        filtered = allTasks
+          .filter((t) =>
+            [TaskStatus.COMPLETED, TaskStatus.LATE].includes(t.status)
+          )
+          // Safer sort: fallback to createdAt
+          .sort(
+            (a, b) =>
+              new Date(b.updatedAt || b.submittedAt || b.createdAt).getTime() -
+              new Date(a.updatedAt || a.submittedAt || a.createdAt).getTime()
+          );
+      } else if (statusFilter !== "ALL") {
+        filtered = allTasks.filter((t) => t.status === statusFilter);
+      } else {
+        // >>> ADDED: sorting for "ALL" only (Overdue -> Todo -> others by last updated)
+        const priority = (t: any) =>
+          t.status === TaskStatus.OVERDUE
+            ? 0
+            : t.status === TaskStatus.TODO
+            ? 1
+            : 2;
 
-    // Date filter
-    if (selectedDate) {
-      filtered = filtered.filter(
-        (t) =>
-          new Date(t.dueDate).toDateString() === selectedDate.toDateString()
-      );
-    }
+        filtered = [...allTasks].sort((a, b) => {
+          const p = priority(a) - priority(b);
+          if (p !== 0) return p;
 
-    // Search by title
-    if (searchQuery.trim()) {
-      const q = searchQuery.trim().toLowerCase();
-      filtered = filtered.filter((t) => t.title.toLowerCase().includes(q));
-    }
+          const aDate = new Date(
+            a.updatedAt || a.submittedAt || a.createdAt || 0
+          );
+          const bDate = new Date(
+            b.updatedAt || b.submittedAt || b.createdAt || 0
+          );
+          return bDate.getTime() - aDate.getTime(); // newest first
+        });
+        // <<< ADDED END
+      }
 
-    const total = Math.ceil(filtered.length / TASKS_PER_PAGE);
-    const start = (currentPage - 1) * TASKS_PER_PAGE;
-    const paginated = filtered.slice(start, start + TASKS_PER_PAGE);
+      // Date filter
+      if (selectedDate) {
+        const sel = selectedDate.toDateString();
+        filtered = filtered.filter(
+          (t) => !!t?.dueDate && new Date(t.dueDate).toDateString() === sel
+        );
+      }
 
-    return {
-      filteredTasks: filtered,
-      totalPages: total,
-      paginatedTasks: paginated,
-    };
-  }, [allTasks, statusFilter, currentPage, selectedDate, searchQuery]);
+      // Search by title
+      if (searchQuery.trim()) {
+        const q = searchQuery.trim().toLowerCase();
+        filtered = filtered.filter((t) => t.title?.toLowerCase().includes(q));
+      }
 
+      const total = Math.ceil(filtered.length / TASKS_PER_PAGE);
+      const start = (currentPage - 1) * TASKS_PER_PAGE;
+      const paginated = filtered.slice(start, start + TASKS_PER_PAGE);
+
+      const completed = filtered.filter((t) =>
+        [TaskStatus.COMPLETED, TaskStatus.LATE].includes(t.status)
+      ).length;
+
+      return {
+        filteredTasks: filtered,
+        totalPages: total,
+        paginatedTasks: paginated,
+        completedCount: completed,
+      };
+    }, [allTasks, statusFilter, currentPage, selectedDate, searchQuery]);
+
+  // Auto reset page if empty (e.g., after filtering)
   useEffect(() => {
     if (paginatedTasks.length === 0 && currentPage > 1) {
       setCurrentPage((prev) => prev - 1);
     }
   }, [paginatedTasks, currentPage]);
 
+  // Sync URL (?status= & ?page=)
   useEffect(() => {
     const timer = setTimeout(() => {
       const params = new URLSearchParams(searchParams.toString());
@@ -135,11 +165,39 @@ export default function TaskList({
     return () => clearTimeout(timer);
   }, [statusFilter, currentPage, pathname, router, searchParams]);
 
+  // Handlers
   const handleStatusChange = (value: ExtraStatus | TaskStatus) => {
     setStatusFilter(value);
     setCurrentPage(1);
-    setSelectedDate(undefined); // reset date when status changes
+    setSelectedDate(undefined); // reset date when status changes (keeps UX clean)
   };
+
+  const handlePageChange = (page: number) => setCurrentPage(page);
+
+  // Ellipsis pagination (like your second version)
+  const getVisiblePages = () => {
+    const maxVisible = 5;
+    if (totalPages <= maxVisible)
+      return Array.from({ length: totalPages }, (_, i) => i + 1);
+
+    let start = Math.max(2, currentPage - 1);
+    let end = Math.min(totalPages - 1, currentPage + 1);
+
+    if (currentPage <= 3) (start = 2), (end = 4);
+    else if (currentPage >= totalPages - 2)
+      (start = totalPages - 3), (end = totalPages - 1);
+
+    return [
+      1,
+      ...(start > 2 ? ["left-ellipsis"] : []),
+      ...Array.from({ length: end - start + 1 }, (_, i) => start + i),
+      ...(end < totalPages - 1 ? ["right-ellipsis"] : []),
+      totalPages,
+    ];
+  };
+
+  const visiblePages =
+    totalPages > 1 ? (getVisiblePages() as (number | string)[]) : [];
 
   const filters = [
     { value: "TODO_OVERDUE", label: "TODO" },
@@ -208,7 +266,10 @@ export default function TaskList({
               <DayPicker
                 mode="single"
                 selected={selectedDate}
-                onSelect={setSelectedDate}
+                onSelect={(date) => {
+                  setSelectedDate(date);
+                  setCurrentPage(1);
+                }}
                 modifiers={{
                   hasTask: (date) => allTaskDates.has(date.toDateString()),
                   today: (date) =>
@@ -235,17 +296,120 @@ export default function TaskList({
         </div>
       </div>
 
-      {/* Task list */}
+      {/* Empty state or list */}
       {filteredTasks.length === 0 ? (
         <p className="text-sm text-muted-foreground dark:text-muted-foreground">
           You have no tasks assigned.
         </p>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {paginatedTasks.map((task) => (
-            <TaskCard key={task.id} task={task} viewerRole="INTERN" />
-          ))}
-        </div>
+        <>
+          {/* Summary (like your second version) */}
+          <p className="text-muted-foreground dark:text-muted-foreground text-sm">
+            {statusFilter === "COMPLETED_LATE" ? (
+              <>
+                You have {filteredTasks.length} completed task
+                {filteredTasks.length !== 1 ? "s" : ""} ✅
+              </>
+            ) : statusFilter === "TODO_OVERDUE" ? (
+              (() => {
+                const todoCount = filteredTasks.filter(
+                  (t) => t.status === TaskStatus.TODO
+                ).length;
+                const overdueCount = filteredTasks.filter(
+                  (t) => t.status === TaskStatus.OVERDUE
+                ).length;
+                return (
+                  <>
+                    You have {todoCount} todo task{todoCount !== 1 ? "s" : ""}
+                    {overdueCount > 0 && (
+                      <>
+                        {" "}
+                        and{" "}
+                        <span className="text-red-500 font-medium dark:text-red-400">
+                          {overdueCount} overdue task
+                          {overdueCount !== 1 ? "s" : ""} ⚠️
+                        </span>
+                      </>
+                    )}
+                  </>
+                );
+              })()
+            ) : (
+              <>
+                You have {filteredTasks.length} task
+                {filteredTasks.length !== 1 ? "s" : ""}.{" "}
+                {completedCount > 0 && `${completedCount} completed ✅`}
+              </>
+            )}
+          </p>
+
+          {/* Task cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {paginatedTasks.map((task) => (
+              <TaskCard key={task.id} task={task} viewerRole="INTERN" />
+            ))}
+          </div>
+
+          {/* Ellipsis Pagination */}
+          {totalPages > 1 && (
+            <div className="flex justify-center gap-2 mt-6 flex-wrap">
+              {/* Prev */}
+              <button
+                onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
+                disabled={currentPage === 1 || isUpdatingURL}
+                className={`px-3 py-1 rounded border dark:border-border ${
+                  currentPage === 1
+                    ? "opacity-50 cursor-not-allowed"
+                    : "bg-background dark:bg-background"
+                }`}
+                aria-label="Previous page"
+              >
+                &lt;
+              </button>
+
+              {visiblePages.map((p, idx) =>
+                p === "left-ellipsis" || p === "right-ellipsis" ? (
+                  <span
+                    key={`ellipsis-${p}-${idx}`}
+                    className="px-2 text-foreground dark:text-foreground"
+                  >
+                    …
+                  </span>
+                ) : (
+                  <button
+                    key={`page-${p}-${idx}`}
+                    onClick={() => handlePageChange(p as number)}
+                    disabled={isUpdatingURL}
+                    className={`px-3 py-1 rounded border dark:border-border ${
+                      p === currentPage
+                        ? "bg-primary text-primary-foreground dark:bg-primary dark:text-primary-foreground"
+                        : "bg-background text-foreground dark:bg-background dark:text-foreground hover:bg-muted/70 dark:hover:bg-muted/60"
+                    }`}
+                    aria-current={p === currentPage ? "page" : undefined}
+                  >
+                    {p}
+                  </button>
+                )
+              )}
+
+              {/* Next */}
+              <button
+                onClick={() =>
+                  handlePageChange(Math.min(totalPages, currentPage + 1))
+                }
+                disabled={currentPage === totalPages || isUpdatingURL}
+                className={`px-3 py-1 rounded border dark:border-border ${
+                  currentPage === totalPages
+                    ? "opacity-50 cursor-not-allowed"
+                    : "bg-background dark:bg-background"
+                }`}
+                aria-label="Next page"
+              >
+                &gt;
+              </button>
+            </div>
+          )}
+        </>
       )}
     </div>
   );
