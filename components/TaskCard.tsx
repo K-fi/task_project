@@ -54,7 +54,6 @@ const TaskCard = ({ task, viewerRole }: TaskCardProps) => {
   const router = useRouter();
   const isCompleted = localStatus === "COMPLETED" || localStatus === "LATE";
 
-  // Load logs on tab open
   useEffect(() => {
     if (tab === "history" && !logsLoaded) {
       const getLogs =
@@ -100,12 +99,13 @@ const TaskCard = ({ task, viewerRole }: TaskCardProps) => {
         </p>
       </CardHeader>
 
-      <CardContent className="text-sm space-y-2 text-gray-800 dark:text-gray-200">
+      {/* Make CardContent a flex column with full height */}
+      <CardContent className="flex flex-col h-full text-sm text-gray-800 dark:text-gray-200 space-y-2">
         {task.description && (
           <p className="text-gray-700 dark:text-gray-300">{task.description}</p>
         )}
 
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between mt-2">
           <span>
             <strong>Status:</strong>{" "}
             <span
@@ -138,7 +138,7 @@ const TaskCard = ({ task, viewerRole }: TaskCardProps) => {
           </span>
         </div>
 
-        <div className="text-xs space-y-1">
+        <div className="text-xs space-y-1 mt-2">
           <p>Created: {dayjs(task.createdAt).format("MMM D, YYYY")}</p>
           <p>Due: {dayjs(task.dueDate).format("MMM D, YYYY")}</p>
           {localSubmission && (
@@ -156,77 +156,113 @@ const TaskCard = ({ task, viewerRole }: TaskCardProps) => {
           )}
         </div>
 
-        {/* Dialog */}
-        <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger asChild>
-            <Button
-              size="sm"
-              variant="outline"
-              className="mt-2 w-full bg-gray-100 dark:bg-gray-700 dark:text-gray-200 text-gray-900 hover:bg-gray-200 dark:hover:bg-gray-600"
-              disabled={viewerRole === "INTERN" && isPending}
-            >
+        {/* Push buttons to bottom using mt-auto */}
+        <div className="mt-auto space-y-2">
+          <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild>
+              <Button
+                size="sm"
+                variant="outline"
+                className="w-full bg-gray-100 dark:bg-gray-700 dark:text-gray-200 text-gray-900 hover:bg-gray-200 dark:hover:bg-gray-600"
+                disabled={viewerRole === "INTERN" && isPending}
+              >
+                {viewerRole === "INTERN" ? (
+                  <>
+                    <ClipboardCheck className="w-4 h-4 mr-2" />
+                    {isCompleted ? "Resubmit Task" : "Submit & Complete"}
+                  </>
+                ) : (
+                  <>
+                    <FileClock className="w-4 h-4 mr-2" />
+                    View Submission History
+                  </>
+                )}
+              </Button>
+            </DialogTrigger>
+
+            <DialogContent className="max-w-lg bg-gray-50 dark:bg-gray-800">
+              <DialogHeader>
+                <DialogTitle className="text-gray-900 dark:text-gray-100">
+                  {viewerRole === "INTERN"
+                    ? isCompleted
+                      ? "Resubmit Task"
+                      : "Submit Task"
+                    : "Submission History"}
+                </DialogTitle>
+              </DialogHeader>
+
               {viewerRole === "INTERN" ? (
-                <>
-                  <ClipboardCheck className="w-4 h-4 mr-2" />
-                  {isCompleted ? "Resubmit Task" : "Submit & Complete"}
-                </>
+                <Tabs value={tab} onValueChange={setTab} className="w-full">
+                  <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="submit">Submit</TabsTrigger>
+                    <TabsTrigger value="history">History</TabsTrigger>
+                  </TabsList>
+
+                  <TabsContent
+                    value="submit"
+                    className="pt-4 space-y-3 flex flex-col"
+                  >
+                    <div className="space-y-2">
+                      <Textarea
+                        placeholder="Add description or link"
+                        value={submission}
+                        onChange={(e) => setSubmission(e.target.value)}
+                        maxLength={500}
+                        className="resize-none w-full min-h-[100px] max-h-[200px] overflow-y-auto whitespace-pre-wrap"
+                        style={{ overflowWrap: "anywhere" }}
+                      />
+                      <p className="text-sm text-gray-500 text-right dark:text-gray-400">
+                        {500 - submission.length} characters remaining
+                      </p>
+                    </div>
+
+                    {/* Push submit button to bottom of TabsContent */}
+                    <div className="mt-auto">
+                      <DialogFooter>
+                        <Button
+                          onClick={handleSubmit}
+                          disabled={isPending || !submission.trim()}
+                          className="w-full bg-black hover:bg-gray-700 text-white dark:bg-blue-500 dark:hover:bg-blue-600"
+                        >
+                          <CheckCircle className="w-4 h-4 mr-2" />
+                          {isCompleted ? "Resubmit" : "Submit & Complete"}
+                        </Button>
+                      </DialogFooter>
+                    </div>
+                  </TabsContent>
+
+                  <TabsContent
+                    value="history"
+                    className="pt-4 max-h-64 overflow-y-auto space-y-2"
+                  >
+                    {logs.length > 0 ? (
+                      logs.map((log) => (
+                        <div
+                          key={log.id}
+                          className="border rounded p-2 text-xs text-gray-700 dark:text-gray-300"
+                        >
+                          <div>
+                            <strong>
+                              {log.submittedBy?.name ?? "Unknown"}:
+                            </strong>{" "}
+                            {log.content}
+                          </div>
+                          <div className="text-[10px] text-gray-500 dark:text-gray-400">
+                            {dayjs(log.submittedAt).format(
+                              "MMM D, YYYY h:mm A"
+                            )}
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-xs text-gray-600 dark:text-gray-400">
+                        No submission history found.
+                      </p>
+                    )}
+                  </TabsContent>
+                </Tabs>
               ) : (
-                <>
-                  <FileClock className="w-4 h-4 mr-2" />
-                  View Submission History
-                </>
-              )}
-            </Button>
-          </DialogTrigger>
-
-          <DialogContent className="max-w-lg bg-gray-50 dark:bg-gray-800">
-            <DialogHeader>
-              <DialogTitle className="text-gray-900 dark:text-gray-100">
-                {viewerRole === "INTERN"
-                  ? isCompleted
-                    ? "Resubmit Task"
-                    : "Submit Task"
-                  : "Submission History"}
-              </DialogTitle>
-            </DialogHeader>
-
-            {viewerRole === "INTERN" ? (
-              <Tabs value={tab} onValueChange={setTab} className="w-full">
-                <TabsList className="grid w-full grid-cols-2">
-                  <TabsTrigger value="submit">Submit</TabsTrigger>
-                  <TabsTrigger value="history">History</TabsTrigger>
-                </TabsList>
-
-                <TabsContent value="submit" className="pt-4 space-y-3">
-                  <div className="space-y-2">
-                    <Textarea
-                      placeholder="Add description or link"
-                      value={submission}
-                      onChange={(e) => setSubmission(e.target.value)}
-                      maxLength={500}
-                      className="resize-none w-full min-h-[100px] max-h-[200px] overflow-y-auto whitespace-pre-wrap"
-                      style={{ overflowWrap: "anywhere" }}
-                    />
-                    <p className="text-sm text-gray-500 text-right dark:text-gray-400">
-                      {500 - submission.length} characters remaining
-                    </p>
-                  </div>
-                  <DialogFooter>
-                    <Button
-                      onClick={handleSubmit}
-                      disabled={isPending || !submission.trim()}
-                      className="w-full bg-black hover:bg-gray-700 text-white dark:bg-blue-500 dark:hover:bg-blue-600"
-                    >
-                      <CheckCircle className="w-4 h-4 mr-2" />
-                      {isCompleted ? "Resubmit" : "Submit & Complete"}
-                    </Button>
-                  </DialogFooter>
-                </TabsContent>
-
-                <TabsContent
-                  value="history"
-                  className="pt-4 max-h-64 overflow-y-auto space-y-2"
-                >
+                <div className="pt-4 max-h-64 overflow-y-auto space-y-2">
                   {logs.length > 0 ? (
                     logs.map((log) => (
                       <div
@@ -247,34 +283,11 @@ const TaskCard = ({ task, viewerRole }: TaskCardProps) => {
                       No submission history found.
                     </p>
                   )}
-                </TabsContent>
-              </Tabs>
-            ) : (
-              <div className="pt-4 max-h-64 overflow-y-auto space-y-2">
-                {logs.length > 0 ? (
-                  logs.map((log) => (
-                    <div
-                      key={log.id}
-                      className="border rounded p-2 text-xs text-gray-700 dark:text-gray-300"
-                    >
-                      <div>
-                        <strong>{log.submittedBy?.name ?? "Unknown"}:</strong>{" "}
-                        {log.content}
-                      </div>
-                      <div className="text-[10px] text-gray-500 dark:text-gray-400">
-                        {dayjs(log.submittedAt).format("MMM D, YYYY h:mm A")}
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <p className="text-xs text-gray-600 dark:text-gray-400">
-                    No submission history found.
-                  </p>
-                )}
-              </div>
-            )}
-          </DialogContent>
-        </Dialog>
+                </div>
+              )}
+            </DialogContent>
+          </Dialog>
+        </div>
       </CardContent>
     </Card>
   );

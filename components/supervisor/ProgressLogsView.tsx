@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import Pagination from "../Pagination";
 import {
   Table,
   TableBody,
@@ -257,46 +258,11 @@ export default function ProgressLogsView({
 
         {/* Pagination */}
         {totalPages > 1 && (
-          <div className="flex justify-center gap-2 mt-4">
-            <button
-              onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-              disabled={currentPage === 1}
-              className="px-3 py-1 rounded border dark:border-border bg-background dark:bg-background disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              &lt;
-            </button>
-            {visiblePages.map((p, idx) =>
-              typeof p === "string" ? (
-                <span
-                  key={`ellipsis-${idx}`}
-                  className="px-2 text-foreground dark:text-foreground"
-                >
-                  {p}
-                </span>
-              ) : (
-                <button
-                  key={`page-${p}`}
-                  onClick={() => setCurrentPage(p)}
-                  className={`px-3 py-1 rounded border dark:border-border ${
-                    p === currentPage
-                      ? "bg-primary text-primary-foreground dark:bg-primary dark:text-primary-foreground"
-                      : "bg-background text-foreground dark:bg-background dark:text-foreground hover:bg-muted/70 dark:hover:bg-muted/60"
-                  }`}
-                >
-                  {p}
-                </button>
-              )
-            )}
-            <button
-              onClick={() =>
-                setCurrentPage(Math.min(totalPages, currentPage + 1))
-              }
-              disabled={currentPage === totalPages}
-              className="px-3 py-1 rounded border dark:border-border bg-background dark:bg-background disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              &gt;
-            </button>
-          </div>
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+          />
         )}
       </div>
     </div>

@@ -14,9 +14,9 @@ import {
 import { Button } from "@/components/ui/button";
 import { Calendar } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import Pagination from "@/components/Pagination"; // <-- import your reusable Pagination
 
 const TASKS_PER_PAGE = 6;
-const MAX_VISIBLE_PAGES = 5;
 
 const VALID_STATUSES = ["all", ...Object.values(TaskStatus)] as const;
 type StatusFilter = (typeof VALID_STATUSES)[number];
@@ -166,28 +166,6 @@ export default function TasksList({
 
   const handlePageChange = (page: number) => setCurrentPage(page);
 
-  // Compute visible pages with ellipses
-  const getVisiblePages = (): (number | string)[] => {
-    if (totalPages <= MAX_VISIBLE_PAGES)
-      return Array.from({ length: totalPages }, (_, i) => i + 1);
-
-    let start = Math.max(2, currentPage - 1);
-    let end = Math.min(totalPages - 1, currentPage + 1);
-
-    if (currentPage <= 3) (start = 2), (end = 4);
-    else if (currentPage >= totalPages - 2)
-      (start = totalPages - 3), (end = totalPages - 1);
-
-    const pages: (number | string)[] = [1];
-    if (start > 2) pages.push("…");
-    for (let i = start; i <= end; i++) pages.push(i);
-    if (end < totalPages - 1) pages.push("…");
-    pages.push(totalPages);
-    return pages;
-  };
-
-  const visiblePages = getVisiblePages();
-
   return (
     <div className="space-y-4">
       {/* Search bar */}
@@ -282,49 +260,12 @@ export default function TasksList({
 
           {/* Pagination */}
           {totalPages > 1 && (
-            <div className="flex justify-center gap-2 mt-6">
-              <button
-                onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
-                disabled={currentPage === 1 || isUpdatingURL}
-                className="px-3 py-1 rounded border dark:border-border bg-background dark:bg-background disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                &lt;
-              </button>
-
-              {visiblePages.map((p, idx) =>
-                typeof p === "string" ? (
-                  <span
-                    key={`ellipsis-${idx}`}
-                    className="px-2 text-foreground dark:text-foreground"
-                  >
-                    {p}
-                  </span>
-                ) : (
-                  <button
-                    key={`page-${p}`}
-                    onClick={() => handlePageChange(p)}
-                    disabled={isUpdatingURL}
-                    className={`px-3 py-1 rounded border dark:border-border ${
-                      p === currentPage
-                        ? "bg-primary text-primary-foreground dark:bg-primary dark:text-primary-foreground"
-                        : "bg-background text-foreground dark:bg-background dark:text-foreground hover:bg-muted/70 dark:hover:bg-muted/60"
-                    }`}
-                  >
-                    {p}
-                  </button>
-                )
-              )}
-
-              <button
-                onClick={() =>
-                  handlePageChange(Math.min(totalPages, currentPage + 1))
-                }
-                disabled={currentPage === totalPages || isUpdatingURL}
-                className="px-3 py-1 rounded border dark:border-border bg-background dark:bg-background disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                &gt;
-              </button>
-            </div>
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={handlePageChange}
+              isDisabled={isUpdatingURL}
+            />
           )}
         </>
       )}

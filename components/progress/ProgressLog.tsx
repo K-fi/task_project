@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
+import Pagination from "../Pagination";
 import { DayPicker } from "react-day-picker";
 import "react-day-picker/dist/style.css";
 import { Button } from "@/components/ui/button";
@@ -366,45 +367,11 @@ export default function ProgressLog({
 
         {/* Pagination */}
         {totalPages > 1 && (
-          <div className="flex justify-center gap-2 mt-2">
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-              disabled={currentPage === 1}
-            >
-              &lt;
-            </Button>
-            {getVisiblePages().map((p, idx) =>
-              p === "..." ? (
-                <span
-                  key={idx}
-                  className="px-2 text-foreground dark:text-foreground"
-                >
-                  ...
-                </span>
-              ) : (
-                <Button
-                  key={p}
-                  size="sm"
-                  variant={p === currentPage ? "default" : "outline"}
-                  onClick={() => setCurrentPage(p as number)}
-                >
-                  {p}
-                </Button>
-              )
-            )}
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() =>
-                setCurrentPage(Math.min(totalPages, currentPage + 1))
-              }
-              disabled={currentPage === totalPages}
-            >
-              &gt;
-            </Button>
-          </div>
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+          />
         )}
       </div>
 

@@ -14,6 +14,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Calendar } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import Pagination from "@/components/Pagination"; // <-- imported Pagination component
 
 type ExtraStatus = "ALL" | "TODO_OVERDUE" | "COMPLETED_LATE";
 
@@ -206,31 +207,6 @@ export default function TaskList({
   const handlePageChange = (page: number) =>
     setCurrentPage(normalizePage(page));
 
-  // Ellipsis pagination
-  const getVisiblePages = () => {
-    const maxVisible = 5;
-    if (totalPages <= maxVisible)
-      return Array.from({ length: totalPages }, (_, i) => i + 1);
-
-    let start = Math.max(2, currentPage - 1);
-    let end = Math.min(totalPages - 1, currentPage + 1);
-
-    if (currentPage <= 3) (start = 2), (end = 4);
-    else if (currentPage >= totalPages - 2)
-      (start = totalPages - 3), (end = totalPages - 1);
-
-    return [
-      1,
-      ...(start > 2 ? ["left-ellipsis"] : []),
-      ...Array.from({ length: end - start + 1 }, (_, i) => start + i),
-      ...(end < totalPages - 1 ? ["right-ellipsis"] : []),
-      totalPages,
-    ];
-  };
-
-  const visiblePages =
-    totalPages > 1 ? (getVisiblePages() as (number | string)[]) : [];
-
   const filters = [
     { value: "TODO_OVERDUE", label: "TODO" },
     { value: "COMPLETED_LATE", label: "COMPLETED" },
@@ -382,64 +358,14 @@ export default function TaskList({
             ))}
           </div>
 
-          {/* Ellipsis Pagination */}
+          {/* Pagination */}
           {totalPages > 1 && (
-            <div className="flex justify-center gap-2 mt-6 flex-wrap">
-              {/* Prev */}
-              <button
-                onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
-                disabled={currentPage === 1 || isUpdatingURL}
-                className={`px-3 py-1 rounded border dark:border-border ${
-                  currentPage === 1
-                    ? "opacity-50 cursor-not-allowed"
-                    : "bg-background dark:bg-background"
-                }`}
-                aria-label="Previous page"
-              >
-                &lt;
-              </button>
-
-              {visiblePages.map((p, idx) =>
-                p === "left-ellipsis" || p === "right-ellipsis" ? (
-                  <span
-                    key={`ellipsis-${p}-${idx}`}
-                    className="px-2 text-foreground dark:text-foreground"
-                  >
-                    …
-                  </span>
-                ) : (
-                  <button
-                    key={`page-${p}-${idx}`}
-                    onClick={() => handlePageChange(p as number)}
-                    disabled={isUpdatingURL}
-                    className={`px-3 py-1 rounded border dark:border-border ${
-                      p === currentPage
-                        ? "bg-primary text-primary-foreground dark:bg-primary dark:text-primary-foreground"
-                        : "bg-background text-foreground dark:bg-background dark:text-foreground hover:bg-muted/70 dark:hover:bg-muted/60"
-                    }`}
-                    aria-current={p === currentPage ? "page" : undefined}
-                  >
-                    {p}
-                  </button>
-                )
-              )}
-
-              {/* Next */}
-              <button
-                onClick={() =>
-                  handlePageChange(Math.min(totalPages, currentPage + 1))
-                }
-                disabled={currentPage === totalPages || isUpdatingURL}
-                className={`px-3 py-1 rounded border dark:border-border ${
-                  currentPage === totalPages
-                    ? "opacity-50 cursor-not-allowed"
-                    : "bg-background dark:bg-background"
-                }`}
-                aria-label="Next page"
-              >
-                &gt;
-              </button>
-            </div>
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={handlePageChange}
+              isDisabled={isUpdatingURL}
+            />
           )}
         </>
       )}
