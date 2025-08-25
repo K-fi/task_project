@@ -19,6 +19,35 @@ type ExtraStatus = "ALL" | "TODO_OVERDUE" | "COMPLETED_LATE";
 
 const TASKS_PER_PAGE = 6;
 
+// ---------- Normalizers ----------
+const VALID_STATUSES: (ExtraStatus | TaskStatus)[] = [
+  "ALL",
+  "TODO_OVERDUE",
+  "COMPLETED_LATE",
+  ...Object.values(TaskStatus),
+];
+
+function normalizeStatus(
+  value: string | null | undefined
+): ExtraStatus | TaskStatus {
+  if (!value) return "ALL";
+  return VALID_STATUSES.includes(value as ExtraStatus | TaskStatus)
+    ? (value as ExtraStatus | TaskStatus)
+    : "ALL";
+}
+
+function normalizePage(value: number | string | null | undefined): number {
+  const num = typeof value === "number" ? value : parseInt(value ?? "", 10);
+  return isNaN(num) || num < 1 ? 1 : num;
+}
+
+function normalizeDate(value: string | null | undefined): Date | undefined {
+  if (!value) return undefined;
+  const d = new Date(value);
+  return isNaN(d.getTime()) ? undefined : d;
+}
+// --------------------------------
+
 export default function TaskList({
   allTasks = [],
   initialStatus,
@@ -32,10 +61,14 @@ export default function TaskList({
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
+  // Validate incoming props/params
+  const safeStatus = normalizeStatus(initialStatus as string);
+  const safePage = normalizePage(initialPage);
+
   const [statusFilter, setStatusFilter] = useState<ExtraStatus | TaskStatus>(
-    initialStatus || "ALL"
+    safeStatus
   );
-  const [currentPage, setCurrentPage] = useState(initialPage || 1);
+  const [currentPage, setCurrentPage] = useState(safePage);
   const [isUpdatingURL, setIsUpdatingURL] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [searchQuery, setSearchQuery] = useState<string>("");
@@ -77,7 +110,6 @@ export default function TaskList({
           .filter((t) =>
             [TaskStatus.COMPLETED, TaskStatus.LATE].includes(t.status)
           )
-          // Safer sort: fallback to createdAt
           .sort(
             (a, b) =>
               new Date(b.updatedAt || b.submittedAt || b.createdAt).getTime() -
@@ -86,7 +118,6 @@ export default function TaskList({
       } else if (statusFilter !== "ALL") {
         filtered = allTasks.filter((t) => t.status === statusFilter);
       } else {
-        // >>> ADDED: sorting for "ALL" only (Overdue -> Todo -> others by last updated)
         const priority = (t: any) =>
           t.status === TaskStatus.OVERDUE
             ? 0
@@ -104,9 +135,8 @@ export default function TaskList({
           const bDate = new Date(
             b.updatedAt || b.submittedAt || b.createdAt || 0
           );
-          return bDate.getTime() - aDate.getTime(); // newest first
+          return bDate.getTime() - aDate.getTime();
         });
-        // <<< ADDED END
       }
 
       // Date filter
@@ -123,8 +153,9 @@ export default function TaskList({
         filtered = filtered.filter((t) => t.title?.toLowerCase().includes(q));
       }
 
-      const total = Math.ceil(filtered.length / TASKS_PER_PAGE);
-      const start = (currentPage - 1) * TASKS_PER_PAGE;
+      const total = Math.max(1, Math.ceil(filtered.length / TASKS_PER_PAGE));
+      const safePage = Math.min(currentPage, total); // clamp currentPage
+      const start = (safePage - 1) * TASKS_PER_PAGE;
       const paginated = filtered.slice(start, start + TASKS_PER_PAGE);
 
       const completed = filtered.filter((t) =>
@@ -167,14 +198,15 @@ export default function TaskList({
 
   // Handlers
   const handleStatusChange = (value: ExtraStatus | TaskStatus) => {
-    setStatusFilter(value);
+    setStatusFilter(normalizeStatus(value));
     setCurrentPage(1);
-    setSelectedDate(undefined); // reset date when status changes (keeps UX clean)
+    setSelectedDate(undefined);
   };
 
-  const handlePageChange = (page: number) => setCurrentPage(page);
+  const handlePageChange = (page: number) =>
+    setCurrentPage(normalizePage(page));
 
-  // Ellipsis pagination (like your second version)
+  // Ellipsis pagination
   const getVisiblePages = () => {
     const maxVisible = 5;
     if (totalPages <= maxVisible)
@@ -303,7 +335,7 @@ export default function TaskList({
         </p>
       ) : (
         <>
-          {/* Summary (like your second version) */}
+          {/* Summary */}
           <p className="text-muted-foreground dark:text-muted-foreground text-sm">
             {statusFilter === "COMPLETED_LATE" ? (
               <>

@@ -18,6 +18,28 @@ import { Input } from "@/components/ui/input";
 const TASKS_PER_PAGE = 6;
 const MAX_VISIBLE_PAGES = 5;
 
+const VALID_STATUSES = ["all", ...Object.values(TaskStatus)] as const;
+type StatusFilter = (typeof VALID_STATUSES)[number];
+
+// --- Helpers to normalize query params ---
+function normalizeStatus(value: string | null): StatusFilter {
+  if (!value) return "all";
+  return VALID_STATUSES.includes(value as StatusFilter)
+    ? (value as StatusFilter)
+    : "all";
+}
+
+function normalizePage(value: string | null): number {
+  const page = value ? parseInt(value, 10) : 1;
+  return isNaN(page) || page < 1 ? 1 : page;
+}
+
+function normalizeDate(value: string | null): Date | undefined {
+  if (!value) return undefined;
+  const d = new Date(value);
+  return isNaN(d.getTime()) ? undefined : d;
+}
+
 export default function TasksList({
   allTasks = [],
   initialStatus,
@@ -31,11 +53,20 @@ export default function TasksList({
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  const [statusFilter, setStatusFilter] = useState<TaskStatus | "all">(
-    initialStatus || "all"
+  // Normalize incoming URL params
+  const initialStatusParam = normalizeStatus(searchParams.get("status"));
+  const initialPageParam = normalizePage(searchParams.get("page"));
+  const initialDateParam = normalizeDate(searchParams.get("date")); // future use
+
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>(
+    initialStatus || initialStatusParam || "all"
   );
-  const [currentPage, setCurrentPage] = useState(initialPage || 1);
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
+  const [currentPage, setCurrentPage] = useState(
+    initialPage || initialPageParam || 1
+  );
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(
+    initialDateParam
+  );
   const [searchQuery, setSearchQuery] = useState("");
   const [isUpdatingURL, setIsUpdatingURL] = useState(false);
 
@@ -69,6 +100,7 @@ export default function TasksList({
     if (selectedDate) {
       tasksToFilter = tasksToFilter.filter(
         (t) =>
+          t.dueDate &&
           new Date(t.dueDate).toDateString() === selectedDate.toDateString()
       );
     }
@@ -89,7 +121,7 @@ export default function TasksList({
     });
 
     // Paginate
-    const total = Math.ceil(sorted.length / TASKS_PER_PAGE);
+    const total = Math.ceil(sorted.length / TASKS_PER_PAGE) || 1;
     const start = (currentPage - 1) * TASKS_PER_PAGE;
     const paginated = sorted.slice(start, start + TASKS_PER_PAGE);
 
@@ -99,6 +131,13 @@ export default function TasksList({
       paginatedTasks: paginated,
     };
   }, [allTasks, statusFilter, currentPage, selectedDate, searchQuery]);
+
+  // Clamp currentPage if > totalPages
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
 
   // Update URL on filter/page change
   useEffect(() => {
@@ -119,7 +158,7 @@ export default function TasksList({
     return () => clearTimeout(timer);
   }, [statusFilter, currentPage, pathname, router, searchParams]);
 
-  const handleStatusChange = (value: TaskStatus | "all") => {
+  const handleStatusChange = (value: StatusFilter) => {
     setStatusFilter(value);
     setCurrentPage(1);
     setSelectedDate(undefined); // reset date filter on status change
@@ -170,12 +209,12 @@ export default function TasksList({
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="flex gap-2 flex-wrap items-center">
           {/* Status buttons */}
-          {["all", ...Object.values(TaskStatus)].map((status) => (
+          {VALID_STATUSES.map((status) => (
             <Button
               key={status}
               size="sm"
               variant={statusFilter === status ? "default" : "outline"}
-              onClick={() => handleStatusChange(status as TaskStatus | "all")}
+              onClick={() => handleStatusChange(status)}
               disabled={isUpdatingURL}
             >
               {status.toUpperCase()}
